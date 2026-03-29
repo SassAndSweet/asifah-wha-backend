@@ -239,6 +239,15 @@ COUNTRY_CONFIG = {
             'colectivos attack', 'armed factions', 'us military venezuela',
             'dea operation venezuela', 'regime collapse', 'government collapse',
             'maduro arrested', 'maduro captured', 'venezuela war',
+            # Transition chaos (v1.1.0 — post-Maduro)
+            'maduro extradited', 'maduro detention', 'maduro trial',
+            'venezuela transition', 'venezuela new government',
+            'venezuela unrest', 'venezuela crisis', 'venezuela violence',
+            'colectivos', 'pro-maduro militia', 'venezuela militia',
+            'venezuela political prisoners', 'venezuela opposition',
+            'venezuela sanctions', 'venezuela oil embargo',
+            'venezuela humanitarian', 'venezuela food shortage',
+            'nicolas maduro', 'chavismo', 'psuv',
         ],
         'keywords_stability': [
             'venezuela peace', 'venezuela ceasefire', 'venezuela agreement',
@@ -622,6 +631,15 @@ COUNTRY_CONFIG = {
             'us domestic unrest protests',
             'us economic crisis recession',
             'us constitutional crisis',
+            'no kings protest united states',
+            'anti trump protest rally',
+            'mass protest washington dc',
+            'nationwide protest demonstration',
+            'us political protest crackdown',
+            'trump executive order protest',
+            'federal workers protest',
+            'us tariffs economic impact',
+            'us recession fears market',
         ],
         'gdelt_queries_es': [],
         'newsapi_queries': [
@@ -633,9 +651,21 @@ COUNTRY_CONFIG = {
             'https://news.google.com/rss/search?q=united+states+political+crisis+OR+instability+OR+constitutional+crisis&hl=en&gl=US&ceid=US:en',
         ],
         'keywords_escalation': [
+            # Protests / demonstrations (v1.1.0 — No Kings, anti-administration)
+            'no kings protest', 'no kings rally', 'anti-trump protest',
+            'protest washington', 'protest united states', 'mass protest',
+            'nationwide protest', 'demonstration washington dc',
+            'protest crackdown', 'protest arrested', 'protest violence',
+            'rally washington', 'march washington', 'civil disobedience',
+            # Political instability
             'constitutional crisis', 'democratic backsliding', 'political violence',
             'us civil unrest', 'institutional collapse', 'us martial law',
             'us government shutdown extended', 'debt default',
+            'executive overreach', 'congress standoff', 'political crisis',
+            'impeachment', 'federal standoff', 'state federal conflict',
+            # Economic stress signals
+            'market crash', 'recession fears', 'economic crisis united states',
+            'tariff crisis', 'trade war escalation', 'federal layoffs',
         ],
         'keywords_stability': [
             'us economic recovery', 'bipartisan', 'democratic norms',
