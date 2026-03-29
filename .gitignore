@@ -1,0 +1,67 @@
+# ========================================
+# Asifah Analytics — WHA Backend .gitignore
+# ========================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.production
+*.env
+
+# Render / deployment
+.render/
+
+# Telegram session files — sensitive, never commit
+*.session
+*.session-journal
+telegram_session*
+session_base64*
+
+# Cache files
+/tmp/
+*.json.bak
+*_cache.json
+
+# Logs
+*.log
+logs/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Jupyter (if used for analysis)
+.ipynb_checkpoints/
+*.ipynb
