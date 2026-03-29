@@ -1146,6 +1146,105 @@ print('[WHA Backend] Military tracker proxy endpoints registered')
 
 
 # ========================================
+# TRAVEL ADVISORY ENDPOINT
+# ========================================
+
+WHA_TRAVEL_ADVISORY_URLS = {
+    'venezuela':  'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/venezuela-travel-advisory.html',
+    'cuba':       'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/cuba-travel-advisory.html',
+    'haiti':      'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/haiti-travel-advisory.html',
+    'panama':     'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/panama-travel-advisory.html',
+    'colombia':   'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/colombia-travel-advisory.html',
+    'mexico':     'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/mexico-travel-advisory.html',
+    'brazil':     'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/brazil-travel-advisory.html',
+    'us':         None,
+}
+
+ADVISORY_LEVEL_COLORS = {
+    1: '#2563eb',
+    2: '#d97706',
+    3: '#ea580c',
+    4: '#dc2626',
+}
+
+ADVISORY_LEVEL_SHORT = {
+    1: 'Exercise Normal Precautions',
+    2: 'Exercise Increased Caution',
+    3: 'Reconsider Travel',
+    4: 'Do Not Travel',
+}
+
+def _scrape_travel_advisory(country_id):
+    url = WHA_TRAVEL_ADVISORY_URLS.get(country_id)
+    if not url:
+        return None
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (compatible; AsifahAnalytics/1.0)'}
+        resp = requests.get(url, headers=headers, timeout=(5, 15))
+        if resp.status_code != 200:
+            return None
+        text = resp.text
+
+        # Extract level number
+        level = 0
+        for lvl in [4, 3, 2, 1]:
+            if f'Level {lvl}' in text:
+                level = lvl
+                break
+
+        if level == 0:
+            return None
+
+        return {
+            'level': level,
+            'level_short': ADVISORY_LEVEL_SHORT.get(level, 'See Advisory'),
+            'level_color': ADVISORY_LEVEL_COLORS.get(level, '#6b7280'),
+            'link': url,
+            'recently_changed': 'recently changed' in text.lower() or 'updated' in text.lower(),
+            'change_description': '',
+            'country': country_id,
+            'scraped_at': datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        print(f'[WHA TA] Scrape error for {country_id}: {e}')
+        return None
+
+
+@app.route('/api/wha/travel-advisories', methods=['GET', 'OPTIONS'])
+def api_wha_travel_advisories():
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    cache_key = 'wha:travel_advisories'
+    force = request.args.get('force', 'false').lower() == 'true'
+
+    if not force:
+        cached = cache_get(cache_key)
+        if cached and is_cache_fresh(cached, max_hours=6):
+            cached['cached'] = True
+            return jsonify(cached)
+
+    advisories = {}
+    for country_id in WHA_COUNTRIES:
+        if country_id == 'us':
+            continue
+        result = _scrape_travel_advisory(country_id)
+        if result:
+            advisories[country_id] = result
+        time.sleep(0.5)
+
+    result = {
+        'success': True,
+        'advisories': advisories,
+        'count': len(advisories),
+        'last_updated': datetime.now(timezone.utc).isoformat(),
+        'cached': False
+    }
+    cache_set(cache_key, result)
+    return jsonify(result)
+
+
+# ========================================
 # APP STARTUP
 # ========================================
 
