@@ -82,9 +82,6 @@ WHA_COUNTRIES = [
 ME_BACKEND = 'https://asifah-backend.onrender.com'
 MILITARY_AVAILABLE = True
 print('[WHA Backend] Military tracker proxied from ME backend')
-except ImportError as e:
-    MILITARY_AVAILABLE = False
-    print(f'[WHA Backend] Military tracker not available: {e}')
 
 # ========================================
 # UPSTASH REDIS HELPERS
