@@ -77,16 +77,11 @@ WHA_COUNTRIES = [
 ]
 
 # ========================================
-# MILITARY TRACKER INTEGRATION
+# MILITARY TRACKER — proxied from ME backend
 # ========================================
-try:
-    from military_tracker import (
-        register_military_endpoints,
-        scan_military_posture,
-        get_military_posture
-    )
-    MILITARY_AVAILABLE = True
-    print('[WHA Backend] Military tracker module loaded')
+ME_BACKEND = 'https://asifah-backend.onrender.com'
+MILITARY_AVAILABLE = True
+print('[WHA Backend] Military tracker proxied from ME backend')
 except ImportError as e:
     MILITARY_AVAILABLE = False
     print(f'[WHA Backend] Military tracker not available: {e}')
@@ -1111,17 +1106,46 @@ def api_wha_countries():
 # MILITARY TRACKER ENDPOINTS
 # ========================================
 
-if MILITARY_AVAILABLE:
-    register_military_endpoints(app)
-    print('[WHA Backend] Military tracker endpoints registered')
-else:
-    @app.route('/api/military-posture', methods=['GET'])
-    def api_military_posture_stub():
-        return jsonify({
-            'success': False,
-            'error': 'Military tracker module not loaded',
-            'hint': 'Ensure military_tracker.py is present in the repo'
-        }), 503
+@app.route('/api/military-posture', methods=['GET', 'OPTIONS'])
+def api_military_posture():
+    if request.method == 'OPTIONS':
+        return '', 200
+    try:
+        params = dict(request.args)
+        resp = requests.get(
+            f'{ME_BACKEND}/api/military-posture',
+            params=params,
+            timeout=(5, 60)
+        )
+        return app.response_class(
+            response=resp.content,
+            status=resp.status_code,
+            mimetype='application/json'
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)[:200]}), 503
+
+
+@app.route('/api/military-posture/<target>', methods=['GET', 'OPTIONS'])
+def api_military_posture_target(target):
+    if request.method == 'OPTIONS':
+        return '', 200
+    try:
+        params = dict(request.args)
+        resp = requests.get(
+            f'{ME_BACKEND}/api/military-posture/{target}',
+            params=params,
+            timeout=(5, 30)
+        )
+        return app.response_class(
+            response=resp.content,
+            status=resp.status_code,
+            mimetype='application/json'
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)[:200]}), 503
+
+print('[WHA Backend] Military tracker proxy endpoints registered')
 
 
 # ========================================
