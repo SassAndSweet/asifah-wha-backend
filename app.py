@@ -1215,21 +1215,21 @@ def _scrape_travel_advisory(country_id):
             return None
         text = resp.text
 
-        # Extract the HEADLINE level — State Dept always puts the country-wide
-        # level as "Level X -" or "Level X:" near the top of the page.
-        # Searching high-to-low (4->1) would grab regional sub-levels first
-        # for countries like Mexico that have states at Level 3/4 inside a
-        # country-wide Level 2 advisory. Instead, find the first occurrence
-        # of the headline pattern which reflects the overall country rating.
+        # State Dept page structure:
+        #   Country headline: "Level 2 - Exercise Increased Caution"  <- dash
+        #   Sub-region label: "International Borders – Level 4:"      <- colon, reversed word order
+        # Match ONLY "Level X -" (dash) which is exclusively the country-wide
+        # headline format. Sub-region headers use "Level X:" with a colon
+        # and never appear with the dash format, so this cleanly separates
+        # countries like Brazil (Level 2 overall, Level 4 sub-regions).
         import re as _re
         level = 0
-        # Primary: match "Level X -" or "Level X:" (headline format)
-        headline_match = _re.search(r'Level\s+([1-4])\s*[-:]', text)
-        if headline_match:
-            level = int(headline_match.group(1))
+        m = _re.search(r'Level\s+([1-4])\s+-', text)
+        if m:
+            level = int(m.group(1))
         else:
-            # Fallback: find the LOWEST level mentioned (country-wide is always
-            # the base; sub-regions can only be higher, not lower)
+            # Fallback: lowest level found (country level is always the base;
+            # sub-regions are equal or higher, never lower)
             for lvl in [1, 2, 3, 4]:
                 if f'Level {lvl}' in text:
                     level = lvl
