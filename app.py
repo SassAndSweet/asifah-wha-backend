@@ -124,16 +124,9 @@ WHA_PRESSURE_SOURCES = {
     # haiti: handled separately via gang-control signals (future work)
 }
 
-
-def _wha_read_actor_level(actor_id):
-    """Read a single actor's alert_level from ME's military_cache in Redis."""
-    if not actor_id:
-        return 'normal'
-    try:
-        data = _redis_get('military_cache')
-        if not data:
-            return 'normal'
-        actors = da
+# NOTE: _wha_read_actor_level() and _wha_pressure_boost() are defined
+# LATER in this file, after _redis_get() is defined. They can't live here
+# because they depend on _redis_get().
 
 # ========================================
 # UPSTASH REDIS HELPERS
@@ -178,6 +171,74 @@ def _redis_set(key, value, ttl_seconds=None):
     except Exception as e:
         print(f'[WHA Redis] SET error for {key}: {e}')
     return False
+
+
+# ========================================
+# PRESSURE INDEX HELPERS (v1.0.0 April 2026)
+# (Defined here because they depend on _redis_get above.
+#  Consumed by scan_country() to boost conflict_probability.)
+# ========================================
+
+def _wha_read_actor_level(actor_id):
+    """Read a single actor's alert_level from ME's military_cache in Redis."""
+    if not actor_id:
+        return 'normal'
+    try:
+        data = _redis_get('military_cache')
+        if not data:
+            return 'normal'
+        actors = data.get('actors', {})
+        actor = actors.get(actor_id, {})
+        if not actor:
+            # Try partial match (e.g. 'us' might be stored as 'us_centcom')
+            for k, v in actors.items():
+                if actor_id in k or k in actor_id:
+                    actor = v
+                    break
+        return actor.get('alert_level', 'normal')
+    except Exception as e:
+        print(f'[WHA Pressure] Read error for {actor_id}: {str(e)[:80]}')
+        return 'normal'
+
+
+def _wha_pressure_boost(country_id):
+    """
+    Compute military-pressure boost for a WHA country.
+    Returns (total_boost_int, details_dict).
+    """
+    sources = WHA_PRESSURE_SOURCES.get(country_id)
+    if not sources:
+        return 0, {
+            'external_level': 'n/a',
+            'internal_level': 'n/a',
+            'external_boost': 0,
+            'internal_boost': 0,
+            'total_pressure_boost': 0,
+        }
+
+    ext_actor = sources.get('external')
+    int_actor = sources.get('internal')
+
+    ext_level = _wha_read_actor_level(ext_actor) if ext_actor else 'normal'
+    int_level = _wha_read_actor_level(int_actor) if int_actor else 'normal'
+
+    ext_boost = WHA_EXTERNAL_PRESSURE_BOOST.get(ext_level, 0)
+    int_boost = WHA_INTERNAL_MIL_BOOST.get(int_level, 0)
+    total = ext_boost + int_boost
+
+    if total > 0:
+        print(f'[WHA Pressure] {country_id}: external {ext_level}(+{ext_boost}) + '
+              f'internal {int_level}(+{int_boost}) = +{total}')
+
+    return total, {
+        'external_level': ext_level,
+        'external_boost': ext_boost,
+        'external_source': ext_actor,
+        'internal_level': int_level,
+        'internal_boost': int_boost,
+        'internal_source': int_actor,
+        'total_pressure_boost': total,
+    }
 
 
 # ========================================
