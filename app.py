@@ -84,6 +84,58 @@ MILITARY_AVAILABLE = True
 print('[WHA Backend] Military tracker proxied from ME backend')
 
 # ========================================
+# PRESSURE INDEX — Military vectors (v1.0.0 April 2026)
+# ========================================
+# Global/Country Pressure Index integrates military posture as one vector.
+# In WHA context, "military posture" rarely means imminent war.
+# Two distinct pressure vectors:
+#
+#   EXTERNAL PRESSURE — US/adversary force projection TOWARD the country
+#     (e.g. SOUTHCOM surge on Venezuela, Chinese fleet near Panama)
+#     Dampened vs ME/Asia — external pressure is constant background
+#
+#   INTERNAL MILITARIZATION — state-vs-cartel/gang ops
+#     (e.g. Mexico cartel war, Colombia ELN ops, Venezuela colectivos)
+#     Signals genuine domestic instability — weighted more heavily
+#
+# Haiti intentionally omitted — no functional state military to track.
+
+WHA_EXTERNAL_PRESSURE_BOOST = {
+    'normal':   0,
+    'elevated': 3,
+    'high':     6,
+    'surge':    10,
+}
+
+WHA_INTERNAL_MIL_BOOST = {
+    'normal':   0,
+    'elevated': 4,
+    'high':     8,
+    'surge':    12,
+}
+
+WHA_PRESSURE_SOURCES = {
+    'venezuela': {'external': 'us',     'internal': 'venezuela'},
+    'cuba':      {'external': 'us',     'internal': None},      # FAR too stable to track as signal
+    'mexico':    {'external': 'us',     'internal': 'mexico'},
+    'colombia':  {'external': None,     'internal': 'colombia'},  # partnership not pressure
+    'panama':    {'external': 'us',     'internal': None},      # Canal posture
+    'brazil':    {'external': None,     'internal': 'brazil'},
+    # haiti: handled separately via gang-control signals (future work)
+}
+
+
+def _wha_read_actor_level(actor_id):
+    """Read a single actor's alert_level from ME's military_cache in Redis."""
+    if not actor_id:
+        return 'normal'
+    try:
+        data = _redis_get('military_cache')
+        if not data:
+            return 'normal'
+        actors = da
+
+# ========================================
 # UPSTASH REDIS HELPERS
 # (REST pattern -- mirrors ME/Asia backends)
 # ========================================
@@ -874,6 +926,13 @@ def scan_country(country_id, days=7):
                 score = max(score - 0.8, 1)
                 break
 
+    # ---- Pressure Index: military vector boost ----
+    pressure_boost, pressure_details = _wha_pressure_boost(country_id)
+    if pressure_boost > 0:
+        pre_boost = score
+        score = min(99.0, score + pressure_boost)
+        print(f'[WHA Scan] {country_id} pressure boost: {pre_boost:.1f} + {pressure_boost} = {score:.1f}')
+
     # Cap score
     score = round(max(1.0, min(99.0, score)), 1)
 
@@ -906,6 +965,7 @@ def scan_country(country_id, days=7):
         'articles_scanned': len(unique_articles),
         'escalation_signals': len(escalation_hits),
         'stability_signals': len(stability_hits),
+        'pressure_index': pressure_details,
         'top_signals': top_signals,
         'days_analyzed': days,
         'last_updated': datetime.now(timezone.utc).isoformat(),
