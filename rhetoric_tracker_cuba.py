@@ -530,6 +530,17 @@ ACTORS = {
             # Russian-language
             'Куба Россия', 'Россия Куба визит', 'Путин Куба',
             'Лавров Куба', 'Росснефть Куба',
+            # Spanish (high-volume Cuban press coverage of Russia relations)
+            'rusia a cuba', 'rusia donacion cuba', 'petroleo donado por rusia',
+            'petroleo ruso cuba', 'petroleo rusia cuba',
+            'rusia envia cuba', 'rusia ayuda cuba', 'rusia apoyo cuba',
+            'cooperacion rusia cuba', 'rusia entrega cuba',
+            'acuerdo rusia cuba', 'moscu cuba', 'kremlin cuba',
+            'visita rusa cuba', 'delegacion rusa cuba',
+            'combustible ruso cuba', 'gas licuado rusia',
+            'putin habana', 'lavrov habana',
+            'buque ruso cuba', 'buque guerra ruso cuba',
+            'submarino ruso cuba',
         ],
         'baseline_statements_per_week': 3,
         'tripwires': [
@@ -583,6 +594,14 @@ ACTORS = {
             # Chinese-language
             '中国古巴', '习近平古巴', '古巴外交',
             '中古关系', '王毅古巴',
+            # Spanish (Cuban press coverage of China relations)
+            'china a cuba', 'china cuba', 'china entrega cuba',
+            'china ayuda cuba', 'cooperacion china cuba',
+            'acuerdo china cuba', 'pekin cuba', 'beijing cuba',
+            'delegacion china cuba', 'visita china cuba',
+            'inversion china cuba', 'credito chino cuba',
+            'puerto mariel china', 'buque chino cuba',
+            'xi jinping habana', 'wang yi habana',
         ],
         'baseline_statements_per_week': 2,
         'tripwires': [
@@ -630,6 +649,13 @@ ACTORS = {
             # Persian-language
             'ایران کوبا', 'کوبا تهران', 'رئیسی کوبا',
             'پزشکیان کوبا', 'خامنه‌ای کوبا',
+            # Spanish (Cuban press coverage of Iran relations)
+            'iran a cuba', 'iran cuba', 'iran entrega cuba',
+            'iran ayuda cuba', 'cooperacion iran cuba',
+            'acuerdo iran cuba', 'teheran cuba',
+            'delegacion irani cuba', 'visita irani cuba',
+            'petroleo irani cuba', 'buque irani cuba',
+            'tanquero irani cuba',
         ],
         'baseline_statements_per_week': 1,
         'tripwires': [
@@ -667,24 +693,22 @@ VECTOR_DESCRIPTIONS = {
 # SOURCE STRATEGY
 # ============================================
 RHETORIC_RSS_FEEDS = [
-    # Cuban state media (Spanish)
-    {'url': 'http://www.granma.cu/rss.xml',                      'name': 'Granma (Official)',           'weight': 1.0, 'lang': 'es'},
+    # Cuban state media (Spanish + English)
+    {'url': 'https://en.granma.cu/feed',                         'name': 'Granma (Official, EN)',       'weight': 1.0, 'lang': 'en'},
     {'url': 'https://www.cubadebate.cu/feed/',                   'name': 'Cubadebate (State)',          'weight': 0.95, 'lang': 'es'},
     {'url': 'https://www.prensa-latina.cu/feed/',                'name': 'Prensa Latina (State)',       'weight': 0.90, 'lang': 'es'},
+    {'url': 'https://www.juventudrebelde.cu/get/rss/generalfeed.xml',
+                                                                 'name': 'Juventud Rebelde (State)',    'weight': 0.85, 'lang': 'es'},
 
     # Cuban dissident / independent
     {'url': 'https://www.14ymedio.com/rss/',                     'name': '14ymedio (Dissident)',        'weight': 1.0, 'lang': 'es'},
     {'url': 'https://diariodecuba.com/rss.xml',                  'name': 'Diario de Cuba (Dissident)',  'weight': 0.95, 'lang': 'es'},
     {'url': 'https://www.cibercuba.com/rss.xml',                 'name': 'CiberCuba (Dissident)',       'weight': 0.90, 'lang': 'es'},
-    {'url': 'https://adncuba.com/feed',                          'name': 'ADN Cuba (Dissident)',        'weight': 0.90, 'lang': 'es'},
+    {'url': 'https://adncuba.com/feed/',                         'name': 'ADN Cuba (Dissident)',        'weight': 0.90, 'lang': 'es'},
     {'url': 'https://www.cubanet.org/feed/',                     'name': 'CubaNet (Dissident)',         'weight': 0.90, 'lang': 'es'},
 
-    # English-language Cuba coverage
-    {'url': 'https://www.miamiherald.com/news/nation-world/world/americas/cuba/?widgetName=rssfeed&widgetContentId=712015&getXmlFeed=true',
-                                                                 'name': 'Miami Herald Cuba',           'weight': 1.0, 'lang': 'en'},
-
-    # US govt
-    {'url': 'https://ofac.treasury.gov/recent-actions/rss',      'name': 'OFAC Recent Actions',         'weight': 1.0, 'lang': 'en'},
+    # English-language independent Cuba coverage
+    {'url': 'https://havanatimes.org/feed/',                     'name': 'Havana Times (Independent)',  'weight': 0.85, 'lang': 'en'},
 
     # Regional context (Spanish wire services)
     {'url': 'https://www.efe.com/efe/america/rss/1',             'name': 'EFE Americas',                'weight': 0.80, 'lang': 'es'},
@@ -880,8 +904,61 @@ def _fetch_gdelt(query, language='eng', days=3, max_records=25):
     return articles
 
 
+def _fetch_newsapi(query='Cuba', days=3, max_records=30, language='en'):
+    """
+    Fetch Cuba-related articles from NewsAPI.org as a fallback when GDELT 429s.
+    Requires NEWSAPI_KEY env var. Returns normalized article dicts.
+
+    Why we have this: NewsAPI covers major English-language outlets (Reuters, AP,
+    Bloomberg, WSJ, NYT, Washington Post) which GDELT sometimes under-samples.
+    It also survives when GDELT rate-limits us after the WHA country scanner
+    exhausts our daily GDELT quota.
+    """
+    if not NEWSAPI_KEY:
+        print("[Cuba NewsAPI] No NEWSAPI_KEY configured -- skipping fallback")
+        return []
+
+    articles = []
+    try:
+        from_date = (datetime.now(timezone.utc) - timedelta(days=days)).strftime('%Y-%m-%d')
+        params = {
+            'q':        query,
+            'from':     from_date,
+            'language': language,
+            'sortBy':   'publishedAt',
+            'pageSize': max_records,
+            'apiKey':   NEWSAPI_KEY,
+        }
+        r = requests.get('https://newsapi.org/v2/everything', params=params, timeout=(5, 15))
+        if r.status_code == 429:
+            print(f"[Cuba NewsAPI] 429 rate limit -- skipping")
+            return []
+        if r.status_code != 200:
+            print(f"[Cuba NewsAPI] HTTP {r.status_code}")
+            return []
+        payload = r.json()
+        if payload.get('status') != 'ok':
+            print(f"[Cuba NewsAPI] Error: {payload.get('message', 'unknown')[:80]}")
+            return []
+        for a in payload.get('articles', []):
+            articles.append({
+                'title':       a.get('title') or '',
+                'description': a.get('description') or a.get('title') or '',
+                'url':         a.get('url') or '',
+                'publishedAt': a.get('publishedAt') or '',
+                'source':      {'name': f"NewsAPI ({(a.get('source') or {}).get('name','Unknown')})"},
+                'content':     a.get('content') or a.get('description') or a.get('title') or '',
+                'language':    language,
+                'feed_type':   'newsapi',
+            })
+        print(f"[Cuba NewsAPI] {language}: {len(articles)} articles (query: {query[:40]})")
+    except Exception as e:
+        print(f"[Cuba NewsAPI] Error: {str(e)[:80]}")
+    return articles
+
+
 def _fetch_all_articles():
-    """Fetch from all RSS sources and GDELT. Returns deduplicated article list."""
+    """Fetch from all RSS sources + GDELT + NewsAPI fallback. Returns deduplicated list."""
     articles = []
 
     # RSS feeds
@@ -907,7 +984,29 @@ def _fetch_all_articles():
         except Exception as e:
             print(f"[Cuba GDELT] {language} error: {str(e)[:80]}")
 
-    print(f"[Cuba Rhetoric] Total articles fetched: {len(articles)} ({gdelt_count} from GDELT)")
+    # NewsAPI fallback: if GDELT returned little/nothing (typically from
+    # quota exhaustion during concurrent WHA country scans), supplement with
+    # NewsAPI English coverage -- major outlets GDELT sometimes under-samples.
+    newsapi_count = 0
+    if gdelt_count < 10:
+        print(f"[Cuba NewsAPI] GDELT returned only {gdelt_count} articles -- triggering fallback")
+        # Three Cuba-targeted queries to cover rhetoric dimensions
+        newsapi_queries = [
+            'Cuba sanctions OR "Cuba regime" OR "Cuba protests"',
+            '"Cuba Havana" OR "Cuban government" OR "Cuban dissidents"',
+            '"Russia Cuba" OR "China Cuba" OR "Iran Cuba"',
+        ]
+        for q in newsapi_queries:
+            try:
+                fetched = _fetch_newsapi(query=q, language='en', max_records=20)
+                articles.extend(fetched)
+                newsapi_count += len(fetched)
+                time.sleep(0.3)  # polite spacing between NewsAPI calls
+            except Exception as e:
+                print(f"[Cuba NewsAPI] query error: {str(e)[:80]}")
+
+    print(f"[Cuba Rhetoric] Total articles fetched: {len(articles)} "
+          f"({gdelt_count} from GDELT, {newsapi_count} from NewsAPI fallback)")
 
     # Deduplicate by URL or title
     seen = set()
@@ -1294,6 +1393,7 @@ def _compute_source_counts(articles):
     counts = {
         'gdelt':    0,
         'rss':      0,
+        'newsapi':  0,
         'bluesky':  0,
         'telegram': 0,
         'reddit':   0,
