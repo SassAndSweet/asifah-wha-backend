@@ -178,6 +178,18 @@ ACTORS = {
             'estados unidos cuba', 'washington cuba', 'gobierno cuba estados unidos',
             'casa blanca cuba', 'departamento de estado cuba',
             'rubio declara cuba', 'trump declara cuba',
+            # Western coalition pressure (amplifies US pressure vector)
+            'canciller aleman', 'german chancellor',
+            'merz cuba', 'friedrich merz',
+            'eu cuba', 'union europea cuba',
+            'germany condemns cuba', 'eu condemns cuba',
+            'european parliament', 'european council',
+            'uk cuba', 'canada cuba',
+            'france cuba', 'spain cuba regime',
+            # Broader democracy framing
+            'cuba democratic transition', 'cuba political reform',
+            'cuba opening', 'cuba human rights',
+            'cuba civil liberties',
         ],
         'baseline_statements_per_week': 15,
         'tripwires': [
@@ -324,6 +336,18 @@ ACTORS = {
             'presidente cuba', 'gobierno cuba declara', 'cancilleria cuba',
             'revolucion cubana', 'bloqueo economico cuba',
             'cuba denuncia estados unidos',
+            # Bilateral engagement (regime diplomatic posture)
+            'reunion delegacion', 'delegacion ee.uu.', 'delegacion eeuu',
+            'cuba dialogo', 'minrex reunion',
+            'cuba conversacion', 'cuba negociacion',
+            'cuba diplomatica', 'delegacion estadounidense',
+            'la habana confirma', 'cuba recibe delegacion',
+            # Crisis denial patterns (regime spin indicator)
+            'cuba niega', 'cuba desmiente', 'cuba rechaza',
+            'niega que', 'rechaza denuncia',
+            # Additional official voice patterns
+            'la habana responde', 'la habana condena', 'la habana rechaza',
+            'cuba exige', 'cuba advierte',
         ],
         'baseline_statements_per_week': 20,
         'tripwires': [
@@ -426,6 +450,32 @@ ACTORS = {
             # Signals
             'cuba defector', 'cuba dissident released', 'cuba dissident jailed',
             'cuba prisoner of conscience',
+            # Economic collapse (regime brittleness indicators)
+            'apagon', 'blackout', 'sin luz',
+            'racionamiento', 'escasez',
+            'hiperinflacion', 'dolarizacion',
+            'salario miseria', 'no alcanza',
+            'sin comida', 'sin medicinas',
+            'crisis alimentaria', 'crisis energetica',
+            'exodo cubano', 'migracion masiva',
+            'colapso economico', 'economic collapse',
+            'cuba inflation', 'peso devaluation',
+            'no alcanzaba', 'alcanzaba para',
+            # Healthcare collapse (regime brittleness)
+            'salud publica', 'hospital sin',
+            'medico huida', 'sistema salud colapso',
+            'medical shortage', 'doctor defection',
+            'brain drain',
+            'atencion medica', 'sin atencion',
+            # Military service deaths / conscription (regime mortality signal)
+            'servicio militar', 'smo muerte',
+            'conscripcion muerte', 'recluta muerto',
+            'jovenes han muerto', 'han muerto en',
+            # Regime critic voices (external press)
+            'regimen comunista', 'regimen cubano',
+            'tirania cubana', 'dictadura cubana',
+            'cuba tirania', 'cuba dictadura',
+            'problemas de cuba', 'crisis cuba',
         ],
         'baseline_statements_per_week': 10,
         'tripwires': [
