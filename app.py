@@ -50,6 +50,18 @@ from pathlib import Path
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
+# Cuba Rhetoric Tracker (v1.0.0 April 2026)
+try:
+    from rhetoric_tracker_cuba import (
+        register_cuba_rhetoric_endpoints,
+        start_background_refresh as start_cuba_rhetoric_refresh,
+    )
+    CUBA_RHETORIC_AVAILABLE = True
+    print('[WHA Backend] Cuba rhetoric tracker module loaded')
+except ImportError as e:
+    CUBA_RHETORIC_AVAILABLE = False
+    print(f'[WHA Backend] WARNING: Cuba rhetoric tracker unavailable ({e})')
+
 # ========================================
 # FLASK APP INIT
 # ========================================
@@ -1096,6 +1108,12 @@ def _start_background_refresh():
 # FLASK ENDPOINTS
 # ========================================
 
+# Register Cuba rhetoric tracker endpoints
+# (/api/rhetoric/cuba, /summary, /history)
+if CUBA_RHETORIC_AVAILABLE:
+    register_cuba_rhetoric_endpoints(app)
+
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({
@@ -1460,6 +1478,13 @@ def api_wha_travel_advisories():
 # ========================================
 
 _start_background_refresh()
+
+# Start Cuba rhetoric tracker background refresh (12h cycle, 90s boot delay)
+if CUBA_RHETORIC_AVAILABLE:
+    start_cuba_rhetoric_refresh()
+
+if __name__ == '__main__':
+    app.run(debug=False, host='0.0.0.0', port=5000)
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=5000)
