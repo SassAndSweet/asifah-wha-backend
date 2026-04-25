@@ -1261,6 +1261,57 @@ def _fetch_all_articles():
             except Exception as e:
                 print(f"[Cuba Brave ES] query error: {str(e)[:80]}")
 
+        # ── v2.3: Cross-theater axis language queries ──
+        # Tightly scoped to escalation-relevant signals only — these languages
+        # have low baseline yield but HIGH strategic value when they hit.
+        # Russia/China/Iran often signal Cuba intent in their own languages
+        # 24-72 hours before English coverage picks it up.
+
+        # Russian queries — Kremlin/Rosneft/military cooperation signals
+        brave_queries_ru = [
+            'Куба нефть Роснефть',           # Cuba oil Rosneft (tanker tracking)
+            'Куба Лавров визит',              # Cuba Lavrov visit (diplomatic signaling)
+            'Куба военное сотрудничество',   # Cuba military cooperation (Lourdes/warships)
+        ]
+        for q in brave_queries_ru:
+            try:
+                fetched = _fetch_brave(q, count=10, freshness='pw',
+                                       search_lang='ru', country='ru')
+                articles.extend(fetched)
+                brave_count += len(fetched)
+                time.sleep(1.1)
+            except Exception as e:
+                print(f"[Cuba Brave RU] query error: {str(e)[:80]}")
+
+        # Mandarin queries — PLAN visits, BRI inclusion, Xinhua Cuba framing
+        brave_queries_zh = [
+            '古巴 中国 港口',                  # Cuba China port (Mariel watch)
+            '古巴 习近平 访问',               # Cuba Xi Jinping visit
+        ]
+        for q in brave_queries_zh:
+            try:
+                fetched = _fetch_brave(q, count=10, freshness='pw',
+                                       search_lang='zh-hans', country='cn')
+                articles.extend(fetched)
+                brave_count += len(fetched)
+                time.sleep(1.1)
+            except Exception as e:
+                print(f"[Cuba Brave ZH] query error: {str(e)[:80]}")
+
+        # Persian query — IRGC delegations, Iran-Cuba MOUs (sparser but cheap insurance)
+        brave_queries_fa = [
+            'کوبا ایران همکاری',              # Cuba Iran cooperation
+        ]
+        for q in brave_queries_fa:
+            try:
+                fetched = _fetch_brave(q, count=10, freshness='pw',
+                                       search_lang='fa', country='ir')
+                articles.extend(fetched)
+                brave_count += len(fetched)
+                time.sleep(1.1)
+            except Exception as e:
+                print(f"[Cuba Brave FA] query error: {str(e)[:80]}")
+
     # ── v2.1: Bluesky source (Trump Truth Social mirrors + USG accounts) ──
     # This is the primary capture path for Trump's Cuba rhetoric since Truth
     # Social has no public RSS. Critical for us_government actor scoring.
@@ -1811,7 +1862,7 @@ def run_cuba_rhetoric_scan(force=False):
             'timestamp':             datetime.now(timezone.utc).isoformat(),
             'from_cache':            False,
             'refresh_triggered':     True,
-            'version':               '2.3.0-cuba-brave-multilang-telegram-civilian-pressure',
+            'version':               '2.3.1 - April 2026',
         }
 
         # Write cache + history + fingerprint
