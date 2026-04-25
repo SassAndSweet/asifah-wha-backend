@@ -682,10 +682,165 @@ ACTORS = {
 # regime_fracture  = max(cu_diss.level - cu_mil.level, 0)
 # adversary_access = max(ru_axis.level, cn_axis.level, ir_axis.level)
 
+# ════════════════════════════════════════════════════════════════
+# BIDIRECTIONAL MIGRATION (v2.1 — Yemen pattern applied to Cuba)
+# ════════════════════════════════════════════════════════════════
+# Cuba is the canonical case for this pattern:
+#   OUTBOUND (Cuba → US/Mexico) = escalatory — economic collapse signal
+#   RETURN  (deportees / repatriated) = de-escalatory — normalization signal
+#
+# Net modifier added to score. Both flows tracked independently so dashboards
+# can show "Mixed Flows" when deportations + ongoing exodus happen simultaneously.
+
+MIGRATION_OUT_TRIGGERS = {
+    5: [  # Mass exodus — Mariel-scale
+        'mariel boatlift', 'cuban rafter crisis', 'mass exodus cuba',
+        'éxodo masivo cuba', 'éxodo cubano',
+        'cuban migration crisis', 'florida overwhelmed cubans',
+        'coast guard mass interdiction',
+    ],
+    4: [  # Significant outbound flow
+        'cuban migrants surge', 'cubans flee', 'cubans leaving',
+        'éxodo cubano masivo', 'salida masiva cuba',
+        'cubans cross darién', 'cubans through nicaragua',
+        'cubans through mexico', 'cuban migrants mexico border',
+        'parole program cuba surge',
+    ],
+    3: [  # Notable outbound movement
+        'cuban migrants increase', 'cubans flee to florida',
+        'florida straits crossing', 'rafter intercepted',
+        'cuba migration up', 'cuban arrivals border',
+        'migrantes cubanos', 'balseros',
+    ],
+    2: [  # Awareness / monitoring
+        'cuban migrant', 'cuban refugee', 'cuban arrival',
+        'cuban exodus', 'éxodo', 'migración cubana',
+        'cuban parole program',
+    ],
+    1: [  # Background mention
+        'cuba migration', 'cuban diaspora flow',
+        'florida cuban arrival',
+    ],
+}
+
+MIGRATION_RETURN_TRIGGERS = {
+    5: [  # Mass return / large-scale repatriation
+        'mass deportation cuba', 'large repatriation cuba',
+        'masiva repatriación cuba', 'cuban deportation flights',
+        'cubans deported back', 'us mass deportation cuba',
+    ],
+    4: [  # Significant return / repatriation activity
+        'cuba accepts deportees', 'cuba accepts repatriation',
+        'cubans deported', 'deportation flight havana',
+        'repatriated to cuba', 'devueltos a cuba',
+        'us cuba deportation agreement', 'havana accepts returns',
+    ],
+    3: [  # Notable return / pattern shift
+        'cubans returning', 'voluntary return cuba',
+        'cubans go home', 'cuba return migration',
+        'reintegration cuba',
+    ],
+    2: [  # Awareness / early signals
+        'cuba return planning', 'cuba reintegration',
+        'cuba return assistance',
+    ],
+    1: [  # Background return mention
+        'cuba return', 'returnees cuba',
+    ],
+}
+
+
+# ════════════════════════════════════════════════════════════════
+# CIVILIAN PRESSURE INDEX (v2.1 — Cuba-specific)
+# ════════════════════════════════════════════════════════════════
+# Cuba's stability is fundamentally about civilian infrastructure, not military
+# escalation. Tracks blackouts, oil supply, food/medicine scarcity, currency
+# collapse — what's actually breaking on the ground.
+#
+# DOES NOT FEED INTO RHETORIC SCORE. Tracked separately and displayed on the
+# stability page. Eventually rolls into the front-page Pressure Index.
+
+CIVILIAN_PRESSURE_TRIGGERS = {
+    5: [  # Catastrophic infrastructure failure
+        'national grid collapse', 'island-wide blackout', 'apagón nacional',
+        'apagón general', 'colapso del sistema eléctrico',
+        'famine cuba', 'hambruna cuba', 'starvation cuba',
+        'cuba currency collapse', 'peso colapso',
+        'medical system collapsed cuba', 'hospitales cerrados',
+    ],
+    4: [  # Severe rolling crises
+        'rolling blackouts cuba', 'apagones rotativos',
+        '20 hour blackout', '18 hour blackout', '16 hour blackout',
+        'fuel ration cuba', 'racionamiento combustible',
+        'food ration crisis', 'cartilla agotada',
+        'medicine shortage critical', 'desabastecimiento medicinas',
+        'no insulin cuba', 'no antibiotics cuba',
+        'cuba runs out of fuel', 'gasoline shortage cuba',
+        'electricity rationing cuba',
+    ],
+    3: [  # Active scarcity signals
+        'blackout cuba', 'apagón cuba', 'sin luz cuba',
+        'apagones', 'cortes de luz',
+        'fuel shortage cuba', 'escasez combustible',
+        'food shortage cuba', 'escasez alimentos',
+        'medicine shortage cuba', 'escasez medicinas',
+        'no bread cuba', 'sin pan',
+        'cuba inflation soars', 'inflación cuba',
+        'cooking gas shortage cuba', 'no hay gas',
+    ],
+    2: [  # Background scarcity / monitoring
+        'racionamiento', 'escasez',
+        'crisis energética cuba', 'crisis alimentaria cuba',
+        'cuba power cuts', 'cuba electric crisis',
+        'salario miseria', 'no alcanza',
+        'sin comida', 'sin medicinas',
+    ],
+    1: [  # General mention
+        'cuba blackout history', 'cuba power grid',
+        'cuban economy weakness', 'crisis económica cuba',
+    ],
+}
+
+# Russian/Iranian oil tanker arrivals (sharpened — feeds adversary_access vector
+# AND civilian pressure index because oil delivery directly affects blackouts)
+OIL_TANKER_TRIGGERS = {
+    5: [  # Major oil shipment / strategic delivery
+        'rosneft tanker havana', 'rosneft cuba oil',
+        'massive russian oil shipment cuba',
+        'iran oil tanker docks havana',
+        'venezuelan oil tanker cuba', 'pdvsa cuba shipment',
+    ],
+    4: [  # Confirmed tanker arrival
+        'russian tanker arrives cuba', 'russian oil cuba',
+        'iranian tanker cuba', 'iran oil cuba',
+        'tanker docks cienfuegos', 'tanker docks matanzas',
+        'tanker docks havana', 'fuel shipment cuba',
+        'crude oil cuba russia', 'crude oil cuba iran',
+    ],
+    3: [  # Tracking / pre-arrival signals
+        'russia tanker en route cuba', 'iran tanker en route cuba',
+        'tanker tracker cuba', 'oil shipment cuba',
+        'russia cuba fuel', 'iran cuba fuel',
+        'tanquero ruso cuba', 'tanquero iraní cuba',
+    ],
+    2: [  # General oil-supply context
+        'russia oil cuba', 'iran oil cuba',
+        'cuba fuel imports', 'venezuela oil cuba',
+    ],
+    1: [  # Background mention
+        'cuba oil supply', 'cuba petroleum',
+    ],
+}
+
+
 VECTOR_DESCRIPTIONS = {
     'us_pressure':      'Maximum of us_government, us_sanctions_regulatory, us_military_posture escalation levels. Answers: "Is Washington escalating?"',
     'regime_fracture':  'Cuban dissident level minus regime security level (floored at 0). Answers: "Is the regime cracking?"',
     'adversary_access': 'Maximum of russia_cuba_axis, china_cuba_axis, iran_cuba_axis escalation levels. Answers: "Who else is circling?"',
+    # ── v2.1: New analytical layers ──
+    'migration_net':    'Bidirectional Cuba-US migration. Outbound (escalatory, +1 to +8) minus return/deportation (de-escalatory, -1 to -8). Net effect feeds rhetoric score.',
+    'civilian_pressure':'Blackouts, fuel shortages, food/medicine scarcity, currency collapse. Tracked SEPARATELY from rhetoric — feeds stability page and front-page Pressure Index.',
+    'oil_tanker':       'Russian/Iranian oil tanker arrivals to Cuba — feeds adversary_access AND civilian_pressure (oil delivery affects blackouts).',
 }
 
 
@@ -1040,6 +1195,99 @@ def _score_article_for_actor(article, actor_key, actor_def):
     return 0, None
 
 
+def _classify_global_signals(articles):
+    """
+    v2.1: Cross-actor signal sweep — scans ALL articles for migration,
+    civilian pressure, and oil tanker signals.
+
+    Returns dict with max levels and captured signal snippets.
+    These signals are independent of the 9-actor matrix because they're
+    structural indicators (Cuba-wide), not actor-specific rhetoric.
+    """
+    summary = {
+        'migration_out_max':      0,
+        'migration_return_max':   0,
+        'civilian_pressure_max':  0,
+        'oil_tanker_max':         0,
+        'migration_out_signals':     [],
+        'migration_return_signals':  [],
+        'civilian_pressure_signals': [],
+        'oil_tanker_signals':        [],
+    }
+
+    for article in articles:
+        text = (
+            (article.get('title', '') or '') + ' ' +
+            (article.get('description', '') or '')
+        ).lower()
+
+        # Migration OUT (Cuba → US/Mexico, escalatory)
+        for level in (5, 4, 3, 2, 1):
+            for kw in MIGRATION_OUT_TRIGGERS.get(level, []):
+                if kw in text:
+                    if level > summary['migration_out_max']:
+                        summary['migration_out_max'] = level
+                    if len(summary['migration_out_signals']) < 5:
+                        summary['migration_out_signals'].append({
+                            'phrase': kw, 'level': level, 'direction': 'out',
+                            'article': article.get('title', '')[:120],
+                            'published': article.get('published', ''),
+                        })
+                    break
+            if summary['migration_out_max'] >= level:
+                break
+
+        # Migration RETURN (deportation/repatriation, de-escalatory)
+        for level in (5, 4, 3, 2, 1):
+            for kw in MIGRATION_RETURN_TRIGGERS.get(level, []):
+                if kw in text:
+                    if level > summary['migration_return_max']:
+                        summary['migration_return_max'] = level
+                    if len(summary['migration_return_signals']) < 5:
+                        summary['migration_return_signals'].append({
+                            'phrase': kw, 'level': level, 'direction': 'return',
+                            'article': article.get('title', '')[:120],
+                            'published': article.get('published', ''),
+                        })
+                    break
+            if summary['migration_return_max'] >= level:
+                break
+
+        # Civilian Pressure (blackouts, scarcity, currency collapse)
+        for level in (5, 4, 3, 2, 1):
+            for kw in CIVILIAN_PRESSURE_TRIGGERS.get(level, []):
+                if kw in text:
+                    if level > summary['civilian_pressure_max']:
+                        summary['civilian_pressure_max'] = level
+                    if len(summary['civilian_pressure_signals']) < 8:
+                        summary['civilian_pressure_signals'].append({
+                            'phrase': kw, 'level': level,
+                            'article': article.get('title', '')[:120],
+                            'published': article.get('published', ''),
+                        })
+                    break
+            if summary['civilian_pressure_max'] >= level:
+                break
+
+        # Oil tanker arrivals (Russia/Iran/Venezuela)
+        for level in (5, 4, 3, 2, 1):
+            for kw in OIL_TANKER_TRIGGERS.get(level, []):
+                if kw in text:
+                    if level > summary['oil_tanker_max']:
+                        summary['oil_tanker_max'] = level
+                    if len(summary['oil_tanker_signals']) < 5:
+                        summary['oil_tanker_signals'].append({
+                            'phrase': kw, 'level': level,
+                            'article': article.get('title', '')[:120],
+                            'published': article.get('published', ''),
+                        })
+                    break
+            if summary['oil_tanker_max'] >= level:
+                break
+
+    return summary
+
+
 def _classify_articles(articles):
     """
     Classify all articles against the 9 Cuba actors.
@@ -1212,20 +1460,29 @@ def _apply_crosstheater_reads(actor_results):
 # ============================================
 # CROSS-THEATER WRITES (expose Cuba signals to other trackers)
 # ============================================
-def _write_crosstheater_fingerprint(actor_results, vectors):
+def _write_crosstheater_fingerprint(actor_results, vectors, global_signals=None, civ_press_lvl=0, migration_net_mod=0):
     """
     Write Cuba signals to shared Redis cross-theater fingerprint key.
     Readable by Asia, Europe, ME, and (eventually) the Global Pressure Index.
+
+    v2.1: Now writes bidirectional migration + civilian pressure + oil tanker
+    fingerprints so the Pressure Index can read them.
     """
     ru_active = actor_results.get('russia_cuba_axis', {}).get('escalation_level', 0) >= 3
     cn_active = actor_results.get('china_cuba_axis',  {}).get('escalation_level', 0) >= 3
     ir_active = actor_results.get('iran_cuba_axis',   {}).get('escalation_level', 0) >= 3
 
-    # Migration surge heuristic: high dissident activity + elevated US military posture
+    # Migration surge heuristic (legacy): high dissident activity + elevated US military posture
     migration_surge = (
         actor_results.get('cuban_dissidents', {}).get('escalation_level', 0) >= 3
         and actor_results.get('us_military_posture', {}).get('escalation_level', 0) >= 2
     )
+
+    # v2.1: Pull from global_signals if provided
+    gs = global_signals or {}
+    migration_out_lvl    = gs.get('migration_out_max', 0)
+    migration_return_lvl = gs.get('migration_return_max', 0)
+    oil_tanker_lvl       = gs.get('oil_tanker_max', 0)
 
     fingerprint = {
         'cuba': {
@@ -1237,7 +1494,28 @@ def _write_crosstheater_fingerprint(actor_results, vectors):
             'china_cuba_active':      cn_active,
             'iran_cuba_active':       ir_active,
             'us_escalation_active':   vectors.get('us_pressure', 0) >= 3,
-            'migration_surge_signal': migration_surge,
+            'migration_surge_signal': migration_surge,  # legacy (kept for compat)
+            # ── v2.1: New cross-theater readable signals ──
+            'migration_out_level':     migration_out_lvl,
+            'migration_return_level':  migration_return_lvl,
+            'migration_net_modifier':  migration_net_mod,
+            'civilian_pressure_level': civ_press_lvl,
+            'civilian_pressure_score': civ_press_lvl * 20,
+            'oil_tanker_level':        oil_tanker_lvl,
+            'oil_supply_squeezed':     civ_press_lvl >= 3 and oil_tanker_lvl <= 1,
+        }
+    }
+
+    existing = _redis_get(CROSSTHEATER_KEY) or {}
+    existing.update(fingerprint)
+    _redis_set(CROSSTHEATER_KEY, existing)
+    print(f"[Cuba Rhetoric] Cross-theater fingerprint written: "
+          f"us={vectors.get('us_pressure', 0)} "
+          f"fracture={vectors.get('regime_fracture', 0)} "
+          f"adv={vectors.get('adversary_access', 0)} "
+          f"civ_press={civ_press_lvl} "
+          f"oil_tanker={oil_tanker_lvl} "
+          f"mig_net={migration_net_mod}")
         }
     }
 
@@ -1281,8 +1559,44 @@ def run_cuba_rhetoric_scan(force=False):
         # 3. Apply cross-theater boosts (Russia/Iran/China fingerprints)
         actor_results = _apply_crosstheater_reads(actor_results)
 
+        # 3b. v2.1: Cross-actor signal sweep (migration, civilian pressure, oil tankers)
+        global_signals = _classify_global_signals(articles)
+
         # 4. Compute three composite vectors
         vectors = _compute_vectors(actor_results)
+
+        # 4b. v2.1: Compute migration net modifier + civilian pressure label
+        migration_out_modifier_map = {0:0, 1:1, 2:2, 3:4, 4:6, 5:8}
+        migration_return_modifier_map = {0:0, 1:-1, 2:-2, 3:-4, 4:-6, 5:-8}
+        migration_out_mod    = migration_out_modifier_map.get(global_signals['migration_out_max'], 0)
+        migration_return_mod = migration_return_modifier_map.get(global_signals['migration_return_max'], 0)
+        migration_net_mod    = migration_out_mod + migration_return_mod
+
+        # Migration net display label
+        if global_signals['migration_out_max'] >= 3 and global_signals['migration_return_max'] >= 3:
+            migration_net_label = 'Mixed Flows'
+        elif global_signals['migration_out_max'] >= 3:
+            migration_net_label = 'Outbound Pressure'
+        elif global_signals['migration_return_max'] >= 3:
+            migration_net_label = 'Return Activity'
+        elif global_signals['migration_out_max'] >= 1 or global_signals['migration_return_max'] >= 1:
+            migration_net_label = 'Background Movement'
+        else:
+            migration_net_label = 'Quiet'
+
+        # Civilian Pressure Index — separate from rhetoric, feeds stability page
+        civ_press_lvl = global_signals['civilian_pressure_max']
+        # Boost civilian pressure if oil supply also flagged (no oil = blackouts)
+        if global_signals['oil_tanker_max'] >= 4:
+            # Active major shipment — relieves pressure slightly
+            civ_press_lvl = max(0, civ_press_lvl - 1)
+
+        civ_press_score = civ_press_lvl * 20  # 0-100 simple mapping
+        civ_press_label_map = {
+            0: 'Stable', 1: 'Background Strain', 2: 'Visible Strain',
+            3: 'Active Crisis', 4: 'Severe Crisis', 5: 'Catastrophic',
+        }
+        civ_press_label = civ_press_label_map.get(civ_press_lvl, 'Stable')
 
         # 5. Red Lines + So What (via signal interpreter)
         red_lines_triggered = []
@@ -1339,6 +1653,29 @@ def run_cuba_rhetoric_scan(force=False):
             'adversary_access':      vectors.get('adversary_access', 0),
             'adversary_access_label': vectors.get('adversary_access_label', 'Baseline'),
 
+            # ── v2.1: Bidirectional Migration ──
+            'migration_out_level':       global_signals['migration_out_max'],
+            'migration_out_label':       _lvl(global_signals['migration_out_max']),
+            'migration_return_level':    global_signals['migration_return_max'],
+            'migration_return_label':    _lvl(global_signals['migration_return_max']),
+            'migration_out_modifier':    migration_out_mod,
+            'migration_return_modifier': migration_return_mod,
+            'migration_net_modifier':    migration_net_mod,
+            'migration_net_label':       migration_net_label,
+            'migration_out_signals':     global_signals['migration_out_signals'],
+            'migration_return_signals':  global_signals['migration_return_signals'],
+
+            # ── v2.1: Civilian Pressure Index (separate from rhetoric score) ──
+            'civilian_pressure_level':   civ_press_lvl,
+            'civilian_pressure_score':   civ_press_score,
+            'civilian_pressure_label':   civ_press_label,
+            'civilian_pressure_signals': global_signals['civilian_pressure_signals'],
+
+            # ── v2.1: Oil Tanker Tracking ──
+            'oil_tanker_level':          global_signals['oil_tanker_max'],
+            'oil_tanker_label':          _lvl(global_signals['oil_tanker_max']),
+            'oil_tanker_signals':        global_signals['oil_tanker_signals'],
+
             # Interpreter output
             'red_lines':             red_lines_triggered,
             'so_what':               so_what,
@@ -1356,7 +1693,7 @@ def run_cuba_rhetoric_scan(force=False):
             'timestamp':             datetime.now(timezone.utc).isoformat(),
             'from_cache':            False,
             'refresh_triggered':     True,
-            'version':               '1.0.0',
+            'version':               '2.1.0-cuba-civilian-pressure-bidirectional-migration',
         }
 
         # Write cache + history + fingerprint
@@ -1369,7 +1706,12 @@ def run_cuba_rhetoric_scan(force=False):
             'scanned_at':       result['scanned_at'],
             'red_lines_count':  len(red_lines_triggered),
         })
-        _write_crosstheater_fingerprint(actor_results, vectors)
+        _write_crosstheater_fingerprint(
+            actor_results, vectors,
+            global_signals=global_signals,
+            civ_press_lvl=civ_press_lvl,
+            migration_net_mod=migration_net_mod,
+        )
 
         print(f"[Cuba Rhetoric] Scan complete: theatre=L{theatre_level}, "
               f"us_pressure=L{vectors.get('us_pressure', 0)}, "
