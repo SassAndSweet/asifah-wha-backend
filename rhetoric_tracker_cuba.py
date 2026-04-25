@@ -98,6 +98,17 @@ except ImportError as e:
     print(f"[Cuba Rhetoric] WARNING: cuba_signal_interpreter not available ({e})")
     _INTERPRETER_AVAILABLE = False
 
+# ── v2.1: Bluesky signal source (Trump Truth Social mirrors + USG accounts) ──
+# Optional — tracker continues to function if import fails (graceful degradation).
+try:
+    from bluesky_signals_wha import fetch_bluesky_for_target as _fetch_bluesky_for_target
+    _BLUESKY_AVAILABLE = True
+    print("[Cuba Rhetoric] ✅ Bluesky module loaded (Trump Truth Social mirroring active)")
+except ImportError as e:
+    print(f"[Cuba Rhetoric] WARNING: bluesky_signals_wha not available ({e}) — Bluesky source disabled")
+    _fetch_bluesky_for_target = None
+    _BLUESKY_AVAILABLE = False
+
 
 # ============================================
 # CONFIG
@@ -1160,8 +1171,21 @@ def _fetch_all_articles():
             except Exception as e:
                 print(f"[Cuba NewsAPI] query error: {str(e)[:80]}")
 
+    # ── v2.1: Bluesky source (Trump Truth Social mirrors + USG accounts) ──
+    # This is the primary capture path for Trump's Cuba rhetoric since Truth
+    # Social has no public RSS. Critical for us_government actor scoring.
+    bluesky_count = 0
+    if _BLUESKY_AVAILABLE and _fetch_bluesky_for_target:
+        try:
+            bluesky_posts = _fetch_bluesky_for_target('cuba', days=7, max_posts_per_account=20)
+            articles.extend(bluesky_posts)
+            bluesky_count = len(bluesky_posts)
+        except Exception as e:
+            print(f"[Cuba Bluesky] Fetch error (non-fatal): {str(e)[:120]}")
+
     print(f"[Cuba Rhetoric] Total articles fetched: {len(articles)} "
-          f"({gdelt_count} from GDELT, {newsapi_count} from NewsAPI fallback)")
+          f"({gdelt_count} from GDELT, {newsapi_count} from NewsAPI fallback, "
+          f"{bluesky_count} from Bluesky)")
 
     # Deduplicate by URL or title
     seen = set()
