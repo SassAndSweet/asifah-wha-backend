@@ -120,6 +120,19 @@ except ImportError as e:
     _fetch_telegram_cuba = None
     _TELEGRAM_AVAILABLE = False
 
+# ── v2.3: Brave Search (multi-language tertiary fallback) ──
+# Imports the Brave fetcher from app.py (the WHA backend's main module).
+# Fires when GDELT+NewsAPI underperform. Critical for Spanish-language coverage
+# of Cuban dissident media outlets that don't surface in English search.
+try:
+    from app import fetch_brave_news as _fetch_brave
+    _BRAVE_AVAILABLE = True
+    print("[Cuba Rhetoric] ✅ Brave Search module loaded (multi-language fallback)")
+except ImportError as e:
+    print(f"[Cuba Rhetoric] WARNING: Brave fetch not available from app ({e})")
+    _fetch_brave = None
+    _BRAVE_AVAILABLE = False
+
 
 # ============================================
 # CONFIG
@@ -1211,6 +1224,43 @@ def _fetch_all_articles():
             except Exception as e:
                 print(f"[Cuba NewsAPI] query error: {str(e)[:80]}")
 
+    # ── v2.3: Brave Search tertiary fallback (multi-language) ──
+    # Fires when GDELT+NewsAPI together returned <15 articles. Spanish queries
+    # are CRITICAL for Cuba — most ground-truth dissident reporting is in Spanish
+    # (CubaNet, 14ymedio, Diario de Cuba) and English-only search misses it.
+    brave_count = 0
+    if _BRAVE_AVAILABLE and _fetch_brave and (gdelt_count + newsapi_count) < 15:
+        print(f"[Cuba Brave] GDELT+NewsAPI returned {gdelt_count + newsapi_count} -- triggering Brave multi-lang fallback")
+        # English queries — broad regime/sanctions coverage
+        brave_queries_en = [
+            'Cuba protests crackdown dissidents',
+            'Cuba Russia oil tanker sanctions',
+        ]
+        for q in brave_queries_en:
+            try:
+                fetched = _fetch_brave(q, count=20, freshness='pw',
+                                       search_lang='en', country='us')
+                articles.extend(fetched)
+                brave_count += len(fetched)
+                time.sleep(1.1)  # Brave free tier: 1 req/sec strict
+            except Exception as e:
+                print(f"[Cuba Brave EN] query error: {str(e)[:80]}")
+        # Spanish queries — the unique value-add for Cuba
+        brave_queries_es = [
+            'Cuba apagón crisis combustible',
+            'Cuba régimen disidentes detenidos',
+            'Cuba protestas represión militar',
+        ]
+        for q in brave_queries_es:
+            try:
+                fetched = _fetch_brave(q, count=15, freshness='pw',
+                                       search_lang='es', country='us')
+                articles.extend(fetched)
+                brave_count += len(fetched)
+                time.sleep(1.1)
+            except Exception as e:
+                print(f"[Cuba Brave ES] query error: {str(e)[:80]}")
+
     # ── v2.1: Bluesky source (Trump Truth Social mirrors + USG accounts) ──
     # This is the primary capture path for Trump's Cuba rhetoric since Truth
     # Social has no public RSS. Critical for us_government actor scoring.
@@ -1239,6 +1289,7 @@ def _fetch_all_articles():
 
     print(f"[Cuba Rhetoric] Total articles fetched: {len(articles)} "
           f"({gdelt_count} from GDELT, {newsapi_count} from NewsAPI fallback, "
+          f"{brave_count} from Brave, "
           f"{bluesky_count} from Bluesky, {telegram_count} from Telegram)")
 
     # Deduplicate by URL or title
@@ -1760,7 +1811,7 @@ def run_cuba_rhetoric_scan(force=False):
             'timestamp':             datetime.now(timezone.utc).isoformat(),
             'from_cache':            False,
             'refresh_triggered':     True,
-            'version':               '2.2.0-cuba-telegram-civilian-pressure-expansion',
+            'version':               '2.3.0-cuba-brave-multilang-telegram-civilian-pressure',
         }
 
         # Write cache + history + fingerprint
@@ -1803,6 +1854,7 @@ def _compute_source_counts(articles):
         'gdelt':    0,
         'rss':      0,
         'newsapi':  0,
+        'brave':    0,
         'bluesky':  0,
         'telegram': 0,
         'reddit':   0,
