@@ -865,17 +865,36 @@ def _reset_gdelt_circuit():
 
 
 # ========================================
-# BRAVE SEARCH NEWS FETCH (v2.1 — tertiary fallback)
+# BRAVE SEARCH NEWS FETCH (v2.2 — multi-language fallback)
 # ========================================
 # Free tier: 2,000 queries/month, 1 req/sec.
 # Triggered when both GDELT and NewsAPI fail.
 # Sign up: https://brave.com/search/api/
 # Set BRAVE_API_KEY on Render.
+#
+# v2.2 (Apr 25 2026): Added search_lang and country params for ES/PT/RU/etc.
+# Critical for Cuba (Spanish dissident media), Brazil (PT), Mexico (ES), and
+# any future theater where English-only search misses regional source coverage.
 
-def fetch_brave_news(query, count=20, freshness='pw'):
+# Brave's supported language codes (subset relevant to Asifah):
+#   en (English), es (Spanish), pt (Portuguese), fr (French), de (German),
+#   ru (Russian), zh-hans (Chinese Simplified), ar (Arabic), fa (Persian),
+#   ja (Japanese), ko (Korean), tr (Turkish), it (Italian)
+#
+# Brave's country codes (ISO-style 2-letter):
+#   us, mx, cu (limited), ve, co, br, ar, cl, es, fr, de, ru, cn, sa, ir, il
+
+def fetch_brave_news(query, count=20, freshness='pw', search_lang='en', country='us'):
     """
     Fetch news articles from Brave Search.
-    freshness: 'pd' = past day, 'pw' = past week, 'pm' = past month.
+
+    Args:
+      query: search query string
+      count: max results (default 20, capped at 50 by Brave)
+      freshness: 'pd' = past day, 'pw' = past week, 'pm' = past month
+      search_lang: language for query parsing ('en', 'es', 'pt', etc.)
+      country: country code for source bias ('us', 'mx', 've', etc.)
+
     Returns list of article dicts in the WHA backend schema.
     """
     if not BRAVE_API_KEY:
@@ -890,6 +909,9 @@ def fetch_brave_news(query, count=20, freshness='pw'):
             'count': count,
             'freshness': freshness,
             'spellcheck': '0',
+            'search_lang': search_lang,
+            'country': country,
+            'ui_lang': search_lang,
         }
         resp = requests.get(BRAVE_NEWS_URL, headers=headers, params=params, timeout=(5, 10))
         if resp.status_code == 429:
@@ -910,6 +932,7 @@ def fetch_brave_news(query, count=20, freshness='pw'):
                 'content': r.get('description', '') or r.get('title', ''),
                 'description': r.get('description', ''),
                 'feed_type': 'brave',
+                'language': search_lang,  # tag the language for downstream filtering
             })
         return articles
     except Exception as e:
@@ -1026,16 +1049,37 @@ def scan_country(country_id, days=7):
         newsapi_count += len(articles)
         time.sleep(0.3)
 
-    # v2.1: Brave Search fallback — only fires when both GDELT and NewsAPI underperform
+    # v2.2: Brave Search fallback — multi-language, fires when GDELT+NewsAPI underperform
     brave_count = 0
     if (gdelt_count + newsapi_count) < 10 and BRAVE_API_KEY:
         print(f'[WHA Scan] {country_id}: GDELT+NewsAPI returned {gdelt_count + newsapi_count} -- triggering Brave fallback')
-        # Reuse first 2 newsapi queries (already country-tuned)
+        # English queries: reuse first 2 newsapi queries (already country-tuned)
         for query in config['newsapi_queries'][:2]:
-            articles = fetch_brave_news(query, count=20, freshness='pw')
+            articles = fetch_brave_news(query, count=20, freshness='pw',
+                                         search_lang='en', country='us')
             all_articles.extend(articles)
             brave_count += len(articles)
             time.sleep(1.1)  # Brave free tier: 1 req/sec strict
+        # Spanish queries: reuse first 2 gdelt_queries_es (already in target language)
+        # Critical for Cuba/Mexico/Venezuela/Colombia — captures regional dissident
+        # and state media that don't show up in English search.
+        spanish_queries = config.get('gdelt_queries_es', [])[:2]
+        for query in spanish_queries:
+            # Bias country to country_id for regional source weighting; fall back to 'us' if unsupported
+            brave_country = country_id if country_id in ('mx', 've', 'co', 'cl', 'ar') else 'us'
+            articles = fetch_brave_news(query, count=15, freshness='pw',
+                                         search_lang='es', country=brave_country)
+            all_articles.extend(articles)
+            brave_count += len(articles)
+            time.sleep(1.1)
+        # Portuguese queries for Brazil (when applicable)
+        if country_id == 'brazil':
+            for query in config.get('newsapi_queries', [])[:1]:  # Use english query, search PT-BR
+                articles = fetch_brave_news(query, count=15, freshness='pw',
+                                             search_lang='pt', country='br')
+                all_articles.extend(articles)
+                brave_count += len(articles)
+                time.sleep(1.1)
 
     # RSS feeds
     rss_count = 0
