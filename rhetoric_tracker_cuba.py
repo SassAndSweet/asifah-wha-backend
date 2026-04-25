@@ -109,6 +109,17 @@ except ImportError as e:
     _fetch_bluesky_for_target = None
     _BLUESKY_AVAILABLE = False
 
+# ── v2.2: Telegram signal source (RU/CN/IR axis, US sanctions, regional OSINT) ──
+# Optional — tracker continues to function if telethon or session is missing.
+try:
+    from telegram_signals_wha import fetch_telegram_signals_cuba as _fetch_telegram_cuba
+    _TELEGRAM_AVAILABLE = True
+    print("[Cuba Rhetoric] ✅ Telegram WHA module loaded")
+except ImportError as e:
+    print(f"[Cuba Rhetoric] WARNING: telegram_signals_wha not available ({e}) — Telegram source disabled")
+    _fetch_telegram_cuba = None
+    _TELEGRAM_AVAILABLE = False
+
 
 # ============================================
 # CONFIG
@@ -773,42 +784,71 @@ MIGRATION_RETURN_TRIGGERS = {
 
 CIVILIAN_PRESSURE_TRIGGERS = {
     5: [  # Catastrophic infrastructure failure
-        'national grid collapse', 'island-wide blackout', 'apagón nacional',
-        'apagón general', 'colapso del sistema eléctrico',
-        'famine cuba', 'hambruna cuba', 'starvation cuba',
-        'cuba currency collapse', 'peso colapso',
+        'national grid collapse', 'island-wide blackout',
+        'apagón nacional', 'apagón general',
+        'colapso del sistema eléctrico', 'colapso eléctrico nacional',
+        'famine cuba', 'hambruna cuba', 'starvation cuba', 'hambruna en cuba',
+        'cuba currency collapse', 'peso colapso', 'colapso del peso cubano',
         'medical system collapsed cuba', 'hospitales cerrados',
+        'sistema de salud colapsado', 'colapso sanitario',
+        'people dying of hunger', 'gente muriendo de hambre',
     ],
     4: [  # Severe rolling crises
-        'rolling blackouts cuba', 'apagones rotativos',
+        'rolling blackouts cuba', 'apagones rotativos', 'apagones programados',
         '20 hour blackout', '18 hour blackout', '16 hour blackout',
-        'fuel ration cuba', 'racionamiento combustible',
-        'food ration crisis', 'cartilla agotada',
+        'apagón de 20 horas', 'apagón de 18 horas', 'apagón de 16 horas',
+        'apagón de 12 horas', 'apagón prolongado',
+        'corte eléctrico prolongado', 'corte de luz prolongado',
+        'fuel ration cuba', 'racionamiento combustible', 'racionamiento de combustible',
+        'food ration crisis', 'cartilla agotada', 'libreta agotada',
         'medicine shortage critical', 'desabastecimiento medicinas',
+        'desabastecimiento de medicinas', 'crisis de medicamentos',
         'no insulin cuba', 'no antibiotics cuba',
-        'cuba runs out of fuel', 'gasoline shortage cuba',
-        'electricity rationing cuba',
+        'sin insulina', 'sin antibióticos',
+        'cuba runs out of fuel', 'gasoline shortage cuba', 'sin gasolina',
+        'electricity rationing cuba', 'racionamiento eléctrico',
+        'sabotaje subestación', 'robar aceite dieléctrico',
+        'aceite dieléctrico robado', 'sabotaje eléctrico',
     ],
     3: [  # Active scarcity signals
-        'blackout cuba', 'apagón cuba', 'sin luz cuba',
-        'apagones', 'cortes de luz',
-        'fuel shortage cuba', 'escasez combustible',
-        'food shortage cuba', 'escasez alimentos',
-        'medicine shortage cuba', 'escasez medicinas',
-        'no bread cuba', 'sin pan',
-        'cuba inflation soars', 'inflación cuba',
-        'cooking gas shortage cuba', 'no hay gas',
+        # IMPORTANT: do NOT require 'cuba' suffix — Cuban media talks about Cuba implicitly.
+        # Requiring 'cuba' caused us to miss articles like CubaNet's 'corte eléctrico prolongado en viviendas'.
+        'blackout', 'apagón', 'apagones', 'sin luz',
+        'corte eléctrico', 'corte de luz', 'cortes de luz', 'cortes eléctricos',
+        'subestación dañada', 'subestación rota',
+        'fuel shortage', 'escasez combustible', 'escasez de combustible',
+        'food shortage', 'escasez alimentos', 'escasez de alimentos',
+        'medicine shortage', 'escasez medicinas', 'escasez de medicinas',
+        'no bread', 'sin pan', 'sin harina',
+        'cuba inflation soars', 'inflación galopante', 'inflación cuba',
+        'cooking gas shortage', 'no hay gas', 'sin gas',
+        'water shortage', 'sin agua', 'crisis del agua',
+        'crisis energética', 'crisis alimentaria',
+        'desabastecimiento', 'escasez crónica',
+        # Cuban-specific scarcity tells (lines to buy, black market, MLC stores)
+        'colas para comprar', 'colas eternas',
+        'mercado negro', 'precios disparados',
+        # Mass exodus ground reporting
+        'people leaving cuba', 'cubans fleeing', 'cubans leave',
     ],
     2: [  # Background scarcity / monitoring
         'racionamiento', 'escasez',
-        'crisis energética cuba', 'crisis alimentaria cuba',
-        'cuba power cuts', 'cuba electric crisis',
-        'salario miseria', 'no alcanza',
+        'cuba power cuts', 'cuba electric crisis', 'cuba blackouts',
+        'salario miseria', 'no alcanza el salario', 'salarios bajos',
         'sin comida', 'sin medicinas',
+        'crisis económica cuba', 'pobreza extrema',
+        'merma alimentaria', 'desabasto',
+        # MLC dollar store collapse pattern
+        'tiendas mlc vacías', 'mlc empty', 'shelves empty cuba',
+        # Healthcare brain drain
+        'salud publica cuba', 'hospital sin', 'sistema salud',
+        'medico huida', 'doctor defection', 'brain drain cuba',
     ],
     1: [  # General mention
-        'cuba blackout history', 'cuba power grid',
-        'cuban economy weakness', 'crisis económica cuba',
+        'cuba blackout history', 'cuba power grid', 'cuba electric grid',
+        'cuban economy weakness', 'crisis económica',
+        'shortages cuba', 'precariedad', 'penuria',
+        'cuban diaspora', 'emigration cuba',
     ],
 }
 
@@ -1183,9 +1223,23 @@ def _fetch_all_articles():
         except Exception as e:
             print(f"[Cuba Bluesky] Fetch error (non-fatal): {str(e)[:120]}")
 
+    # ── v2.2: Telegram source (RU/CN/IR axis channels + US sanctions + OSINT) ──
+    # Primarily catches cross-theater fingerprint mentions: when Russian/Iranian
+    # state media talk about Cuba, when US sanctions designations land, when
+    # regional Spanish-language aggregators surface dissident or scarcity news.
+    # Cuba's TG footprint is sparser than ME theaters — typical yield 5-30 posts/scan.
+    telegram_count = 0
+    if _TELEGRAM_AVAILABLE and _fetch_telegram_cuba:
+        try:
+            telegram_posts = _fetch_telegram_cuba(hours_back=24)
+            articles.extend(telegram_posts)
+            telegram_count = len(telegram_posts)
+        except Exception as e:
+            print(f"[Cuba Telegram] Fetch error (non-fatal): {str(e)[:120]}")
+
     print(f"[Cuba Rhetoric] Total articles fetched: {len(articles)} "
           f"({gdelt_count} from GDELT, {newsapi_count} from NewsAPI fallback, "
-          f"{bluesky_count} from Bluesky)")
+          f"{bluesky_count} from Bluesky, {telegram_count} from Telegram)")
 
     # Deduplicate by URL or title
     seen = set()
@@ -1706,7 +1760,7 @@ def run_cuba_rhetoric_scan(force=False):
             'timestamp':             datetime.now(timezone.utc).isoformat(),
             'from_cache':            False,
             'refresh_triggered':     True,
-            'version':               '2.1.0-cuba-civilian-pressure-bidirectional-migration',
+            'version':               '2.2.0-cuba-telegram-civilian-pressure-expansion',
         }
 
         # Write cache + history + fingerprint
