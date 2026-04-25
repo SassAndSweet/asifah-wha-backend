@@ -1516,17 +1516,6 @@ def _write_crosstheater_fingerprint(actor_results, vectors, global_signals=None,
           f"civ_press={civ_press_lvl} "
           f"oil_tanker={oil_tanker_lvl} "
           f"mig_net={migration_net_mod}")
-        }
-    }
-
-    existing = _redis_get(CROSSTHEATER_KEY) or {}
-    existing.update(fingerprint)
-    _redis_set(CROSSTHEATER_KEY, existing)
-    print(f"[Cuba Rhetoric] Cross-theater fingerprint written: "
-          f"us={vectors.get('us_pressure', 0)} "
-          f"fracture={vectors.get('regime_fracture', 0)} "
-          f"adv={vectors.get('adversary_access', 0)} "
-          f"migration={migration_surge}")
 
 
 # ============================================
