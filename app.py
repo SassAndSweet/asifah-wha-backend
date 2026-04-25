@@ -78,6 +78,8 @@ UPSTASH_REDIS_URL   = os.environ.get('UPSTASH_REDIS_URL')
 UPSTASH_REDIS_TOKEN = os.environ.get('UPSTASH_REDIS_TOKEN')
 NEWSAPI_KEY         = os.environ.get('NEWSAPI_KEY')
 GDELT_BASE_URL      = 'https://api.gdeltproject.org/api/v2/doc/doc'
+BRAVE_API_KEY       = os.environ.get('BRAVE_API_KEY')  # v2.1: free tier 2,000 queries/month
+BRAVE_NEWS_URL      = 'https://api.search.brave.com/res/v1/news/search'
 
 CACHE_TTL_HOURS     = 12
 CACHE_FILE_DIR      = '/tmp'
@@ -811,7 +813,15 @@ COUNTRY_CONFIG = {
 # GDELT FETCH
 # ========================================
 
+# v2.1: When GDELT is unhealthy, short-circuit further calls in this scan
+# to avoid burning 30+ seconds waiting for timeouts on every query.
+_gdelt_circuit_broken = False
+
 def fetch_gdelt(query, days=7, language='eng', max_records=50):
+    global _gdelt_circuit_broken
+    if _gdelt_circuit_broken:
+        return []  # short-circuit — give up on GDELT for the rest of this scan
+
     try:
         params = {
             'query': query,
@@ -821,9 +831,11 @@ def fetch_gdelt(query, days=7, language='eng', max_records=50):
             'format': 'json',
             'sourcelang': language
         }
-        resp = requests.get(GDELT_BASE_URL, params=params, timeout=(5, 30))
+        # v2.1: Tightened timeout — GDELT either responds in 8s or it's unhealthy
+        resp = requests.get(GDELT_BASE_URL, params=params, timeout=(5, 8))
         if resp.status_code == 429:
-            print(f'[WHA GDELT] 429 rate limit -- skipping: {query[:40]}')
+            print(f'[WHA GDELT] 429 rate limit -- breaking circuit')
+            _gdelt_circuit_broken = True
             return []
         if resp.status_code != 200:
             return []
@@ -837,8 +849,71 @@ def fetch_gdelt(query, days=7, language='eng', max_records=50):
             'content': a.get('title', ''),
             'feed_type': 'gdelt'
         } for a in articles]
+    except requests.exceptions.Timeout:
+        print(f'[WHA GDELT] Timeout (>8s) -- breaking circuit for this scan')
+        _gdelt_circuit_broken = True
+        return []
     except Exception as e:
         print(f'[WHA GDELT] Error: {str(e)[:80]}')
+        return []
+
+
+def _reset_gdelt_circuit():
+    """Call at start of each scan_country() to give GDELT a fresh chance."""
+    global _gdelt_circuit_broken
+    _gdelt_circuit_broken = False
+
+
+# ========================================
+# BRAVE SEARCH NEWS FETCH (v2.1 — tertiary fallback)
+# ========================================
+# Free tier: 2,000 queries/month, 1 req/sec.
+# Triggered when both GDELT and NewsAPI fail.
+# Sign up: https://brave.com/search/api/
+# Set BRAVE_API_KEY on Render.
+
+def fetch_brave_news(query, count=20, freshness='pw'):
+    """
+    Fetch news articles from Brave Search.
+    freshness: 'pd' = past day, 'pw' = past week, 'pm' = past month.
+    Returns list of article dicts in the WHA backend schema.
+    """
+    if not BRAVE_API_KEY:
+        return []
+    try:
+        headers = {
+            'Accept': 'application/json',
+            'X-Subscription-Token': BRAVE_API_KEY,
+        }
+        params = {
+            'q': query,
+            'count': count,
+            'freshness': freshness,
+            'spellcheck': '0',
+        }
+        resp = requests.get(BRAVE_NEWS_URL, headers=headers, params=params, timeout=(5, 10))
+        if resp.status_code == 429:
+            print(f'[WHA Brave] 429 rate limit -- skipping: {query[:40]}')
+            return []
+        if resp.status_code != 200:
+            print(f'[WHA Brave] HTTP {resp.status_code} -- skipping')
+            return []
+        data = resp.json()
+        results = data.get('results', [])
+        articles = []
+        for r in results:
+            articles.append({
+                'title': r.get('title', ''),
+                'url': r.get('url', ''),
+                'source': (r.get('meta_url') or {}).get('hostname', 'Brave'),
+                'published': r.get('age', ''),
+                'content': r.get('description', '') or r.get('title', ''),
+                'description': r.get('description', ''),
+                'feed_type': 'brave',
+            })
+        return articles
+    except Exception as e:
+        print(f'[WHA Brave] Error: {str(e)[:80]}')
         return []
 
 
@@ -925,29 +1000,54 @@ def scan_country(country_id, days=7):
     print(f'[WHA Scan] Scanning {country_id} ({days}d)...')
     all_articles = []
 
+    # v2.1: Reset GDELT circuit at start — give it a fresh chance per country
+    _reset_gdelt_circuit()
+
     # GDELT English
+    gdelt_count = 0
     for query in config['gdelt_queries_en']:
         articles = fetch_gdelt(query, days=days, language='eng')
         all_articles.extend(articles)
+        gdelt_count += len(articles)
         time.sleep(0.5)
 
     # GDELT Spanish
     for query in config.get('gdelt_queries_es', []):
         articles = fetch_gdelt(query, days=days, language='spa')
         all_articles.extend(articles)
+        gdelt_count += len(articles)
         time.sleep(0.5)
 
     # NewsAPI
+    newsapi_count = 0
     for query in config['newsapi_queries']:
         articles = fetch_newsapi(query, days=days)
         all_articles.extend(articles)
+        newsapi_count += len(articles)
         time.sleep(0.3)
 
+    # v2.1: Brave Search fallback — only fires when both GDELT and NewsAPI underperform
+    brave_count = 0
+    if (gdelt_count + newsapi_count) < 10 and BRAVE_API_KEY:
+        print(f'[WHA Scan] {country_id}: GDELT+NewsAPI returned {gdelt_count + newsapi_count} -- triggering Brave fallback')
+        # Reuse first 2 newsapi queries (already country-tuned)
+        for query in config['newsapi_queries'][:2]:
+            articles = fetch_brave_news(query, count=20, freshness='pw')
+            all_articles.extend(articles)
+            brave_count += len(articles)
+            time.sleep(1.1)  # Brave free tier: 1 req/sec strict
+
     # RSS feeds
+    rss_count = 0
     for feed_url in config['rss_feeds']:
         articles = fetch_rss(feed_url)
         all_articles.extend(articles)
+        rss_count += len(articles)
         time.sleep(0.5)
+
+    print(f'[WHA Scan] {country_id} sources: '
+          f'GDELT={gdelt_count} · NewsAPI={newsapi_count} · '
+          f'Brave={brave_count} · RSS={rss_count}')
 
     # Deduplicate by URL
     seen_urls = set()
