@@ -592,3 +592,251 @@ def interpret_signals(scan_data):
         'so_what':            so_what,
         'historical_matches': historical_matches,
     }
+
+
+# ============================================================
+# v2.0+ — TOP SIGNALS (BLUF / GPI consumable)
+# ============================================================
+# Emits a pre-prioritized list of signal dicts that the WHA Regional BLUF
+# (and ultimately the Global Pressure Index) consume directly.
+#
+# Cuba-specific categories:
+#   red_line_breached, theatre_high, us_pressure_high, regime_fracture,
+#   adversary_access, migration_surge, dissident_anomaly, off_ramp_active
+
+CUBA_FLAG = '\U0001f1e8\U0001f1fa'  # 🇨🇺
+
+def build_top_signals(scan_data):
+    """
+    Build Cuba's top_signals[] for BLUF/GPI consumption.
+    Reads from scan_data dict (post-interpret_signals output).
+    Returns sorted list (descending priority).
+    """
+    signals = []
+
+    actor_results = scan_data.get('actors', {}) or {}
+    so_what       = scan_data.get('so_what', {}) or {}
+    red_lines     = scan_data.get('red_lines', []) or []
+
+    overall_level = scan_data.get('overall_level',
+                    scan_data.get('theatre_level', 0)) or 0
+    overall_score = scan_data.get('theatre_score',
+                    scan_data.get('overall_score', 0)) or 0
+
+    # Cuba's three vectors from so_what
+    us_pressure      = so_what.get('us_pressure', 0) or 0
+    regime_fracture  = so_what.get('regime_fracture', 0) or 0
+    adversary_access = so_what.get('adversary_access', 0) or 0
+
+    # Actor-specific levels (9 actors in Cuba)
+    us_gov_lvl       = actor_results.get('us_government',          {}).get('escalation_level', 0) or 0
+    us_sanc_lvl      = actor_results.get('us_sanctions_regulatory', {}).get('escalation_level', 0) or 0
+    us_mil_lvl       = actor_results.get('us_military_posture',    {}).get('escalation_level', 0) or 0
+    cuban_gov_lvl    = actor_results.get('cuban_government',       {}).get('escalation_level', 0) or 0
+    cuban_mil_lvl    = actor_results.get('cuban_military_security', {}).get('escalation_level', 0) or 0
+    dissident_lvl    = actor_results.get('cuban_dissidents',       {}).get('escalation_level', 0) or 0
+    russia_axis_lvl  = actor_results.get('russia_cuba_axis',       {}).get('escalation_level', 0) or 0
+    china_axis_lvl   = actor_results.get('china_cuba_axis',        {}).get('escalation_level', 0) or 0
+    iran_axis_lvl    = actor_results.get('iran_cuba_axis',         {}).get('escalation_level', 0) or 0
+
+    # ============================================
+    # 1. RED LINES BREACHED
+    # ============================================
+    for rl in red_lines:
+        if not isinstance(rl, dict): continue
+        status = rl.get('status', '')
+        label  = rl.get('label', 'Red line')
+        if status == 'BREACHED':
+            signals.append({
+                'priority':   12,
+                'category':   'red_line_breached',
+                'theatre':    'cuba',
+                'level':      overall_level,
+                'icon':       rl.get('icon', '🚨'),
+                'color':      '#dc2626',
+                'short_text': f'{CUBA_FLAG} CUBA: BREACH — {label[:55]}',
+                'long_text':  f'CUBA red line breached at L{overall_level}: {label}.',
+            })
+        elif status == 'APPROACHING':
+            signals.append({
+                'priority':   8,
+                'category':   'red_line_approaching',
+                'theatre':    'cuba',
+                'level':      overall_level,
+                'icon':       '🟠',
+                'color':      '#f97316',
+                'short_text': f'{CUBA_FLAG} CUBA: Approaching — {label[:50]}',
+                'long_text':  f'CUBA approaching red line: {label}.',
+            })
+
+    # ============================================
+    # 2. THEATRE-HIGH (overall L4+)
+    # ============================================
+    if overall_level >= 4:
+        signals.append({
+            'priority':   9 + overall_level,
+            'category':   'theatre_high',
+            'theatre':    'cuba',
+            'level':      overall_level,
+            'icon':       '🔴',
+            'color':      '#dc2626' if overall_level >= 5 else '#ef4444',
+            'short_text': f'{CUBA_FLAG} CUBA L{overall_level} — Pressure cascade',
+            'long_text':  f'CUBA at L{overall_level} composite pressure (score {overall_score}/100). '
+                          f'US-Cuba friction with regime/adversary cross-cutting signals.',
+        })
+
+    # ============================================
+    # 3. U.S. PRESSURE VECTOR (Q1 in Cuba's three-question frame)
+    # ============================================
+    if us_pressure >= 4:
+        signals.append({
+            'priority':   10,
+            'category':   'us_pressure_high',
+            'theatre':    'cuba',
+            'level':      us_pressure,
+            'icon':       '🦅',
+            'color':      '#dc2626',
+            'short_text': f'{CUBA_FLAG} CUBA: US pressure L{us_pressure}',
+            'long_text':  f'CUBA U.S. pressure vector L{us_pressure} — coercion-to-action transition. '
+                          f'Gov L{us_gov_lvl}, sanctions L{us_sanc_lvl}, military L{us_mil_lvl}.',
+        })
+    elif us_pressure >= 3:
+        signals.append({
+            'priority':   7,
+            'category':   'us_pressure_high',
+            'theatre':    'cuba',
+            'level':      us_pressure,
+            'icon':       '🦅',
+            'color':      '#f97316',
+            'short_text': f'{CUBA_FLAG} CUBA: US pressure L{us_pressure}',
+            'long_text':  f'CUBA U.S. pressure L{us_pressure} — direct threat language; named action signals.',
+        })
+
+    # ============================================
+    # 4. REGIME FRACTURE VECTOR (Q2)
+    # ============================================
+    if regime_fracture >= 4:
+        signals.append({
+            'priority':   10,
+            'category':   'regime_fracture',
+            'theatre':    'cuba',
+            'level':      regime_fracture,
+            'icon':       '✊',
+            'color':      '#dc2626',
+            'short_text': f'{CUBA_FLAG} CUBA: Regime fracture L{regime_fracture}',
+            'long_text':  f'CUBA regime fracture L{regime_fracture} — dissident L{dissident_lvl}, '
+                          f'security L{cuban_mil_lvl}; G2 suppression breaking down.',
+        })
+    elif regime_fracture >= 3:
+        signals.append({
+            'priority':   7,
+            'category':   'regime_fracture',
+            'theatre':    'cuba',
+            'level':      regime_fracture,
+            'icon':       '✊',
+            'color':      '#f97316',
+            'short_text': f'{CUBA_FLAG} CUBA: Regime fracture L{regime_fracture}',
+            'long_text':  f'CUBA regime fracture signals L{regime_fracture} — dissident activity rising vs. baseline.',
+        })
+
+    # ============================================
+    # 5. ADVERSARY ACCESS VECTOR (Q3 — RU/CN/IR)
+    # ============================================
+    if adversary_access >= 4:
+        signals.append({
+            'priority':   11,
+            'category':   'adversary_access',
+            'theatre':    'cuba',
+            'level':      adversary_access,
+            'icon':       '🤝',
+            'color':      '#dc2626',
+            'short_text': f'{CUBA_FLAG} CUBA: Adversary access L{adversary_access}',
+            'long_text':  f'CUBA adversary access L{adversary_access} — RU L{russia_axis_lvl}, '
+                          f'CN L{china_axis_lvl}, IR L{iran_axis_lvl}; SIGINT/port/oil channels active.',
+        })
+    elif adversary_access >= 3:
+        signals.append({
+            'priority':   8,
+            'category':   'adversary_access',
+            'theatre':    'cuba',
+            'level':      adversary_access,
+            'icon':       '🤝',
+            'color':      '#f97316',
+            'short_text': f'{CUBA_FLAG} CUBA: Adversary access L{adversary_access}',
+            'long_text':  f'CUBA adversary access L{adversary_access} — multiple axis activity detected.',
+        })
+
+    # ============================================
+    # 6. AXIS-SPECIFIC HIGH (RU / CN / IR individually)
+    # ============================================
+    if russia_axis_lvl >= 4:
+        signals.append({
+            'priority':   9,
+            'category':   'russia_axis_high',
+            'theatre':    'cuba',
+            'level':      russia_axis_lvl,
+            'icon':       '🇷🇺',
+            'color':      '#7c3aed',
+            'short_text': f'{CUBA_FLAG} CUBA: Russia-Cuba axis L{russia_axis_lvl}',
+            'long_text':  f'CUBA: Russia-Cuba axis L{russia_axis_lvl} — port visits, SIGINT, or strategic delegation activity.',
+        })
+    if china_axis_lvl >= 4:
+        signals.append({
+            'priority':   9,
+            'category':   'china_axis_high',
+            'theatre':    'cuba',
+            'level':      china_axis_lvl,
+            'icon':       '🇨🇳',
+            'color':      '#7c3aed',
+            'short_text': f'{CUBA_FLAG} CUBA: China-Cuba axis L{china_axis_lvl}',
+            'long_text':  f'CUBA: China-Cuba axis L{china_axis_lvl} — SIGINT facility activity or PLA Navy port visits.',
+        })
+    if iran_axis_lvl >= 4:
+        signals.append({
+            'priority':   9,
+            'category':   'iran_axis_high',
+            'theatre':    'cuba',
+            'level':      iran_axis_lvl,
+            'icon':       '🇮🇷',
+            'color':      '#7c3aed',
+            'short_text': f'{CUBA_FLAG} CUBA: Iran-Cuba axis L{iran_axis_lvl}',
+            'long_text':  f'CUBA: Iran-Cuba axis L{iran_axis_lvl} — IRGC delegation or oil tanker activity.',
+        })
+
+    # ============================================
+    # 7. MIGRATION SURGE (cross-theater fingerprint Cuba writes)
+    # ============================================
+    migration_surge = scan_data.get('migration_surge', 0) or 0
+    if migration_surge >= 3 or (dissident_lvl >= 3 and us_mil_lvl >= 2):
+        effective_level = max(migration_surge, 3)
+        signals.append({
+            'priority':   8,
+            'category':   'migration_surge',
+            'theatre':    'cuba',
+            'level':      effective_level,
+            'icon':       '🌊',
+            'color':      '#0ea5e9',
+            'short_text': f'{CUBA_FLAG} CUBA: Migration surge signal L{effective_level}',
+            'long_text':  f'CUBA migration surge indicators L{effective_level} — dissident pressure plus '
+                          f'US military posture suggests outflow risk; WHA cascade fingerprint active.',
+        })
+
+    # ============================================
+    # 8. OFF-RAMP / DE-ESCALATION (positive)
+    # ============================================
+    off_ramp_active = so_what.get('off_ramp_active', False)
+    if off_ramp_active:
+        signals.append({
+            'priority':   6,
+            'category':   'off_ramp_active',
+            'theatre':    'cuba',
+            'level':      max(0, overall_level - 1),
+            'icon':       '🕊️',
+            'color':      '#10b981',
+            'short_text': f'{CUBA_FLAG} CUBA: Off-ramp signals',
+            'long_text':  f'CUBA off-ramp / de-escalation language detected — diplomatic backchannel or sanctions relief signaling.',
+        })
+
+    # Sort descending; BLUF will dedupe + globally rank
+    signals.sort(key=lambda s: s['priority'], reverse=True)
+    return signals
