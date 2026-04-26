@@ -214,9 +214,14 @@ def _normalize_tracker_data(theatre, raw_data):
                        raw_data.get('threat_level', 0))))
 
     # ---- SCORE ----
+    # Most trackers emit theatre_score (0-100); level-based trackers (e.g. Cuba's
+    # 3-vector model) only emit theatre_level (0-5). Derive a 0-100 proxy by
+    # multiplying level × 20 so the regional dashboard always has a usable score.
     score = _safe_int(raw_data.get('theatre_score',
                       raw_data.get('rhetoric_score',
                       raw_data.get('overall_score', 0))))
+    if score == 0 and threat:
+        score = int(threat) * 20
 
     # ---- INFLUENCE LEVEL (forward-ready; no current WHA tracker uses this) ----
     influence = raw_data.get('influence_level')
