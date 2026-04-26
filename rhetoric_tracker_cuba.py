@@ -92,6 +92,7 @@ try:
         check_red_lines,
         build_so_what,
         build_historical_matches,
+        build_top_signals,
     )
     _INTERPRETER_AVAILABLE = True
 except ImportError as e:
@@ -1862,8 +1863,23 @@ def run_cuba_rhetoric_scan(force=False):
             'timestamp':             datetime.now(timezone.utc).isoformat(),
             'from_cache':            False,
             'refresh_triggered':     True,
-            'version':               '2.3.1 - April 2026',
+            'version':               '2.4.0 - April 2026',  # v2.4: emits top_signals[] for BLUF/GPI
         }
+
+        # v2.4: Build top_signals[] AFTER result dict (needs theatre_level + so_what)
+        top_signals = []
+        if _INTERPRETER_AVAILABLE:
+            try:
+                # Inject overall_level alias for build_top_signals compatibility
+                # (interpreter expects overall_level; tracker uses theatre_level)
+                result_for_signals = dict(result)
+                result_for_signals['overall_level'] = result.get('theatre_level', 0)
+                top_signals = build_top_signals(result_for_signals)
+                print(f"[Cuba Rhetoric] top_signals: {len(top_signals)} emitted")
+            except Exception as e:
+                print(f"[Cuba Rhetoric] build_top_signals error: {str(e)[:120]}")
+                top_signals = []
+        result['top_signals'] = top_signals
 
         # Write cache + history + fingerprint
         _redis_set(RHETORIC_CACHE_KEY, result)
