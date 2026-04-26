@@ -62,6 +62,18 @@ except ImportError as e:
     CUBA_RHETORIC_AVAILABLE = False
     print(f'[WHA Backend] WARNING: Cuba rhetoric tracker unavailable ({e})')
 
+# ── v1.0: WHA Regional BLUF Engine ──
+# Synthesizes top_signals[] across all live WHA trackers (Cuba today;
+# Venezuela / Haiti / Mexico / Panama etc. slot in via TRACKER_KEYS).
+# Required for Global Pressure Index downstream consumption.
+try:
+    from wha_regional_bluf import register_wha_bluf_routes
+    WHA_BLUF_AVAILABLE = True
+    print('[WHA Backend] Regional BLUF engine loaded')
+except ImportError as e:
+    WHA_BLUF_AVAILABLE = False
+    print(f'[WHA Backend] WARNING: WHA regional BLUF unavailable ({e})')
+
 # ========================================
 # FLASK APP INIT
 # ========================================
@@ -1257,6 +1269,13 @@ def _start_background_refresh():
 if CUBA_RHETORIC_AVAILABLE:
     register_cuba_rhetoric_endpoints(app)
 
+# Register WHA Regional BLUF endpoints
+# (/api/rhetoric/wha/bluf, /api/rhetoric/wha/bluf/debug)
+# Reads from rhetoric:cuba:latest (and future WHA tracker caches)
+# Synthesizes top_signals[] for downstream Global Pressure Index consumption.
+if WHA_BLUF_AVAILABLE:
+    register_wha_bluf_routes(app)
+
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -1266,6 +1285,8 @@ def health():
         'version': VERSION,
         'countries': WHA_COUNTRIES,
         'military_available': MILITARY_AVAILABLE,
+        'cuba_rhetoric_available': CUBA_RHETORIC_AVAILABLE,
+        'wha_bluf_available': WHA_BLUF_AVAILABLE,
         'redis_configured': bool(UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN),
         'newsapi_configured': bool(NEWSAPI_KEY),
         'timestamp': datetime.now(timezone.utc).isoformat()
