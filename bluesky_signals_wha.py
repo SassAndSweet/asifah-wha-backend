@@ -1,6 +1,6 @@
 """
 ========================================
-BLUESKY — Western Hemisphere Signal Monitor (v1.0.0)
+BLUESKY — Western Hemisphere Signal Monitor (v1.1.0)
 ========================================
 WHA companion to bluesky_signals_asia.py and bluesky_signals_europe.py.
 
@@ -18,15 +18,32 @@ Returns the same article dict shape as RSS/GDELT/Telegram ingestion so the
 WHA backend's existing scoring pipeline works unchanged.
 
 Targets supported (WHA backend country keys):
-    cuba, mexico, venezuela, colombia, brazil, panama, haiti, united_states
+    cuba, mexico, venezuela, colombia, brazil, panama, haiti, united_states,
+    chile, peru
     Use ['*'] for accounts that are global (USG executive, all-WHA scope).
+
+────────────────────────────────────────────────────────────────────────
+v1.1.0 CHANGES (May 8, 2026)
+────────────────────────────────────────────────────────────────────────
+  • Audit pass: per Apr 25 prior verification, only 4 handles confirmed live
+    (realdonaldtrump, statedept, state-department.bsky.social, wartranslated).
+    All other govmirror handles return HTTP 400 in production logs.
+  • Status comments added per handle (CONFIRMED / UNVERIFIED / SPECULATIVE).
+  • Did NOT delete unverified handles — kept for audit trail; the
+    fetch_bluesky_account() function already handles 400/404 gracefully.
+  • Added Chile, Peru handles (copper convergence pathway WHA <-> Asia)
+  • Added commodity-specialist accounts (copper, oil, mining) for cross-
+    referencing commodity tracker convergence alerts
+  • Added Brazil, Colombia, Panama head-of-state mirrors (architecture
+    parity with Cuba/Venezuela/Mexico already covered)
+  • Added regional analyst accounts (FT/Reuters/AP LatAm coverage)
 """
 
 import requests
 import time
 from datetime import datetime, timezone, timedelta
 
-# Public AppView — no auth required for read-only
+# Public AppView -- no auth required for read-only
 BLUESKY_API = "https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed"
 
 # Timeout for individual account fetches (seconds)
@@ -41,84 +58,222 @@ BLUESKY_TIMEOUT = 8
 #          e.g. "state-department.bsky.social"
 #          govmirrors: "potus.govmirrors.com" (mirror of @POTUS)
 #
-# weight:  1.2 = head of state direct (Trump, Diaz-Canel, Maduro)
+# weight:  1.2 = head of state direct (Trump, Diaz-Canel, Maduro, Lula, Boric)
 #          1.1 = senior cabinet (Rubio = Cuban-American, primary signal)
 #          1.0 = institutional / military command (SOUTHCOM, State Dept)
 #          0.9 = analytical / OSINT / regional specialist
-#          0.85 = partner/allied accounts
+#          0.85 = partner/allied accounts, commodity specialists
+#          0.80 = aggregators, secondary mirrors
 #
 # targets: list of WHA backend target keys this account is relevant to.
-#          WHA targets: cuba, mexico, venezuela, colombia, brazil,
-#                       panama, haiti, united_states
+#          WHA targets: cuba, mexico, venezuela, colombia, brazil, panama,
+#                       haiti, united_states, chile, peru
 #          Use ['*'] for all WHA targets (global USG scope).
+#
+# STATUS COMMENT GLOSSARY (added v1.1.0):
+#   CONFIRMED:    Verified responsive in Apr 25 production audit
+#   UNVERIFIED:   Returned HTTP 400 in Apr 25 logs -- govmirrors.com
+#                 reliability issue. Kept in list; will silently skip on 400.
+#   SPECULATIVE:  Never confirmed; included on architectural completeness
+#                 grounds. Re-verify on first deploy via /tmp/wha-bluesky-log.
+#   NEW:          Added v1.1.0 -- not yet production-tested.
 # ────────────────────────────────────────────────────────────────
 BLUESKY_ACCOUNTS_WHA = [
-    # ── US Government — native Bluesky (global scope) ───────────
+
+    # ═══════════════════════════════════════════════════════════
+    # US GOVERNMENT — global scope (all WHA targets)
+    # ═══════════════════════════════════════════════════════════
+
+    # ── Native Bluesky accounts (no mirror layer) ──
     ('state-department.bsky.social',    1.0, ['*'],
-        'US State Department (official) — travel advisories, WHA policy'),
+        'US State Department (official native) -- travel advisories, WHA policy [CONFIRMED Apr 25]'),
 
-    # ── US Government — govmirrors.com (X / Truth Social sourced) ──
+    # ── govmirrors.com (X / Truth Social mirrored) ──
     # Trump Truth Social mirroring is the headline capability here.
-    # POTUS account also mirrors significant WH executive content.
-    ('potus.govmirrors.com',            1.2, ['*'],
-        'POTUS (X mirror) — White House executive statements'),
-    ('realdonaldtrump.govmirrors.com',  1.2, ['cuba', 'venezuela', 'mexico', 'panama', 'haiti', '*'],
-        'Trump Truth Social (X mirror) — Cuba/Venezuela/Mexico/Panama statements; PRIMARY US signal source for Cuba'),
-    ('secdef.govmirrors.com',           1.1, ['*'],
-        'US SecDef (X mirror) — SOUTHCOM posture, deployment signals'),
-    ('secrubio.govmirrors.com',         1.15, ['cuba', 'venezuela', 'colombia', '*'],
-        'SecState Rubio (X mirror) — Cuban-American, PRIMARY signal for Cuba/Venezuela'),
+    # Note: most non-Trump govmirror handles flagged UNVERIFIED in Apr 25 audit.
+    ('realdonaldtrump.govmirrors.com',  1.2, ['cuba', 'venezuela', 'mexico', 'panama', 'haiti', 'colombia', '*'],
+        'Trump Truth Social (X mirror) -- PRIMARY US signal source for WHA [CONFIRMED Apr 25]'),
     ('statedept.govmirrors.com',        0.9, ['*'],
-        'StateDept (X mirror) — redundant with native, kept as backup'),
+        'StateDept (X mirror) -- redundant with native, kept as backup [CONFIRMED Apr 25]'),
+    ('potus.govmirrors.com',            1.2, ['*'],
+        'POTUS (X mirror) -- White House executive statements [UNVERIFIED Apr 25]'),
+    ('secdef.govmirrors.com',           1.1, ['*'],
+        'US SecDef (X mirror) -- SOUTHCOM posture, deployment signals [UNVERIFIED Apr 25]'),
+    ('secrubio.govmirrors.com',         1.15, ['cuba', 'venezuela', 'colombia', '*'],
+        'SecState Rubio (X mirror) -- Cuban-American, PRIMARY signal for Cuba/Venezuela [UNVERIFIED Apr 25]'),
 
-    # ── Regional Combatant Commands ─────────────────────────────
-    ('southcom.govmirrors.com',         1.0, ['cuba', 'venezuela', 'colombia', 'panama', 'haiti'],
-        'US SOUTHCOM (X mirror) — Caribbean/LatAm military posture'),
+    # ── Regional Combatant Commands ──
+    ('southcom.govmirrors.com',         1.0, ['cuba', 'venezuela', 'colombia', 'panama', 'haiti', 'chile', 'peru', 'brazil'],
+        'US SOUTHCOM (X mirror) -- Caribbean/LatAm military posture [UNVERIFIED Apr 25]'),
     ('northcom.govmirrors.com',         0.95, ['mexico', 'cuba'],
-        'US NORTHCOM (X mirror) — border, Mexico, GTMO'),
+        'US NORTHCOM (X mirror) -- border, Mexico, GTMO [UNVERIFIED Apr 25]'),
 
-    # ── US legislative / Cuba-specific senate ───────────────────
+    # ── US legislative -- Cuba/Venezuela hawks ──
     ('marcorubio.govmirrors.com',       1.1, ['cuba', 'venezuela'],
-        'Sen. Rubio (X mirror) — Cuba/Venezuela hawkish line, before SecState'),
+        'Sen. Rubio (X mirror) -- pre-SecState archive [UNVERIFIED Apr 25]'),
 
-    # ── Cuban regime accounts (if mirrored) ─────────────────────
-    # Cuban gov is mostly NOT on Bluesky natively. Listed handles are
-    # speculative — comment out if 404s appear in logs.
-    ('diazcanelb.govmirrors.com',       1.2, ['cuba'],
-        'Diaz-Canel (X mirror) — Cuban head of state'),
-    ('cubaminrex.govmirrors.com',       1.0, ['cuba'],
-        'Cuba MINREX (X mirror) — Cuban foreign ministry'),
+    # ── US Treasury / sanctions enforcement (NEW) ──
+    ('treasury.govmirrors.com',         1.0, ['*'],
+        'US Treasury (X mirror) -- OFAC SDN designations, sanctions actions [SPECULATIVE]'),
+    ('ofac.govmirrors.com',             1.0, ['cuba', 'venezuela', 'mexico'],
+        'OFAC (X mirror) -- sanctions designations specifically [SPECULATIVE]'),
 
-    # ── Cuban dissident / independent media ─────────────────────
-    # 14ymedio and CubaNet have native Bluesky presence
-    ('14ymedio.bsky.social',            0.95, ['cuba'],
-        '14ymedio (Yoani Sánchez) — leading Cuban dissident outlet'),
-    ('cubanet.bsky.social',             0.9, ['cuba'],
-        'CubaNet — dissident reporting, prisoner tracking'),
-    ('diariodecuba.bsky.social',        0.9, ['cuba'],
-        'Diario de Cuba — dissident outlet, arrest tracking'),
 
-    # ── Venezuelan opposition / Latin America analysts ──────────
-    ('mariacorinaya.govmirrors.com',    1.0, ['venezuela'],
-        'María Corina Machado (X mirror) — Venezuelan opposition leader'),
-
-    # ── Mexican government ──────────────────────────────────────
-    ('claudiashein.govmirrors.com',     1.1, ['mexico'],
-        'Claudia Sheinbaum (X mirror) — Mexican president'),
-    ('sre-mexico.govmirrors.com',       0.9, ['mexico'],
-        'Mexico SRE (X mirror) — foreign ministry'),
-
-    # ── OSINT aggregators (global, high signal) ─────────────────
-    ('osintdefender.bsky.social',       0.9, ['*'],
-        'OSINT Defender — global conflict monitoring'),
+    # ═══════════════════════════════════════════════════════════
+    # GLOBAL OSINT (high-value, multi-theatre)
+    # ═══════════════════════════════════════════════════════════
     ('wartranslated.bsky.social',       0.8, ['*'],
-        'WarTranslated — global military translation'),
+        'WarTranslated -- global military translation [CONFIRMED Apr 25]'),
+    ('osintdefender.bsky.social',       0.9, ['*'],
+        'OSINT Defender -- global conflict monitoring [UNVERIFIED Apr 25]'),
 
-    # ── WHA / LatAm analytical accounts ─────────────────────────
-    ('americasquarterly.bsky.social',   0.85, ['cuba', 'venezuela', 'mexico', 'brazil', 'colombia'],
-        'Americas Quarterly — WHA policy analysis'),
+
+    # ═══════════════════════════════════════════════════════════
+    # CUBA-specific
+    # ═══════════════════════════════════════════════════════════
+
+    # ── Cuban regime accounts (mostly NOT on Bluesky natively) ──
+    ('diazcanelb.govmirrors.com',       1.2, ['cuba'],
+        'Diaz-Canel (X mirror) -- Cuban head of state [UNVERIFIED Apr 25]'),
+    ('cubaminrex.govmirrors.com',       1.0, ['cuba'],
+        'Cuba MINREX (X mirror) -- Cuban foreign ministry [UNVERIFIED Apr 25]'),
+
+    # ── Cuban dissident / independent media ──
+    ('14ymedio.bsky.social',            0.95, ['cuba'],
+        '14ymedio (Yoani Sanchez) -- leading Cuban dissident outlet [UNVERIFIED Apr 25]'),
+    ('cubanet.bsky.social',             0.9, ['cuba'],
+        'CubaNet -- dissident reporting, prisoner tracking [UNVERIFIED Apr 25]'),
+    ('diariodecuba.bsky.social',        0.9, ['cuba'],
+        'Diario de Cuba -- dissident outlet, arrest tracking [UNVERIFIED Apr 25]'),
+
+
+    # ═══════════════════════════════════════════════════════════
+    # VENEZUELA-specific
+    # ═══════════════════════════════════════════════════════════
+    ('mariacorinaya.govmirrors.com',    1.0, ['venezuela'],
+        'Maria Corina Machado (X mirror) -- opposition leader [UNVERIFIED Apr 25]'),
+    ('nicolasmaduro.govmirrors.com',    1.2, ['venezuela'],
+        'Maduro (X mirror) -- regime head [SPECULATIVE]'),
+    ('vencancilleria.govmirrors.com',   1.0, ['venezuela'],
+        'Venezuela Foreign Ministry (X mirror) [SPECULATIVE]'),
+
+
+    # ═══════════════════════════════════════════════════════════
+    # MEXICO-specific
+    # ═══════════════════════════════════════════════════════════
+    ('claudiashein.govmirrors.com',     1.1, ['mexico'],
+        'Claudia Sheinbaum (X mirror) -- Mexican president [UNVERIFIED Apr 25]'),
+    ('sre-mexico.govmirrors.com',       0.9, ['mexico'],
+        'Mexico SRE (X mirror) -- foreign ministry [UNVERIFIED Apr 25]'),
+    ('sedena-mx.govmirrors.com',        0.95, ['mexico'],
+        'SEDENA Mexico (X mirror) -- military / cartel ops posture [SPECULATIVE NEW]'),
+
+
+    # ═══════════════════════════════════════════════════════════
+    # CHILE (NEW v1.1.0) -- copper convergence anchor
+    # ═══════════════════════════════════════════════════════════
+    # Chile is the world's #1 copper producer (~24% global supply).
+    # Critical for: copper convergence pathway WHA<->Asia, Lithium Triangle
+    # (Chile/Argentina/Bolivia), Antarctic claims, Pacific Rim posture.
+    ('boric.govmirrors.com',            1.2, ['chile'],
+        'President Boric (X mirror) -- Chilean head of state [SPECULATIVE NEW]'),
+    ('cancilleriacl.govmirrors.com',    1.0, ['chile'],
+        'Chile Cancilleria (X mirror) -- foreign ministry [SPECULATIVE NEW]'),
+    ('codelco.bsky.social',             0.85, ['chile'],
+        'Codelco -- state copper miner, world #1 producer [SPECULATIVE NEW]'),
+    ('mineriachile.bsky.social',        0.85, ['chile'],
+        'Chile Mining Ministry [SPECULATIVE NEW]'),
+
+
+    # ═══════════════════════════════════════════════════════════
+    # PERU (NEW v1.1.0) -- copper convergence + lithium
+    # ═══════════════════════════════════════════════════════════
+    # Peru is the world's #2 copper producer (~10% global supply),
+    # also major silver, zinc, lead. Politically volatile -- multiple
+    # presidents in 5 years. Las Bambas mine is the critical site.
+    ('boluartedina.govmirrors.com',     1.2, ['peru'],
+        'President Boluarte (X mirror) -- Peruvian head of state [SPECULATIVE NEW]'),
+    ('cancilleriaperu.govmirrors.com',  1.0, ['peru'],
+        'Peru Cancilleria (X mirror) -- foreign ministry [SPECULATIVE NEW]'),
+
+
+    # ═══════════════════════════════════════════════════════════
+    # BRAZIL (NEW v1.1.0) -- regional anchor, BRICS member
+    # ═══════════════════════════════════════════════════════════
+    # Brazil is #1 iron ore + soybeans producer in WHA, ~9% lithium
+    # global, also major coffee/sugar. BRICS convener, Lula's foreign
+    # policy is its own signal class.
+    ('lula.govmirrors.com',             1.2, ['brazil'],
+        'Lula (X mirror) -- Brazilian head of state [SPECULATIVE NEW]'),
+    ('itamaraty.govmirrors.com',        1.0, ['brazil'],
+        'Itamaraty (X mirror) -- Brazilian foreign ministry [SPECULATIVE NEW]'),
+    ('vale.bsky.social',                0.85, ['brazil'],
+        'Vale -- world #1 iron ore miner, major nickel/copper [SPECULATIVE NEW]'),
+    ('petrobras.bsky.social',           0.85, ['brazil'],
+        'Petrobras -- Brazilian state oil company [SPECULATIVE NEW]'),
+
+
+    # ═══════════════════════════════════════════════════════════
+    # COLOMBIA (NEW v1.1.0) -- ELN/FARC, oil, coca
+    # ═══════════════════════════════════════════════════════════
+    ('petrogustavo.govmirrors.com',     1.2, ['colombia'],
+        'Petro (X mirror) -- Colombian head of state [SPECULATIVE NEW]'),
+    ('cancilleriaco.govmirrors.com',    1.0, ['colombia'],
+        'Colombia Cancilleria (X mirror) [SPECULATIVE NEW]'),
+
+
+    # ═══════════════════════════════════════════════════════════
+    # PANAMA (NEW v1.1.0) -- Panama Canal sovereignty
+    # ═══════════════════════════════════════════════════════════
+    ('mulino.govmirrors.com',           1.2, ['panama'],
+        'President Mulino (X mirror) -- Panamanian head of state [SPECULATIVE NEW]'),
+    ('mirepa.govmirrors.com',           1.0, ['panama'],
+        'Panama Foreign Ministry (X mirror) [SPECULATIVE NEW]'),
+
+
+    # ═══════════════════════════════════════════════════════════
+    # HAITI (NEW v1.1.0) -- failed-state monitoring (limited gov capacity)
+    # ═══════════════════════════════════════════════════════════
+    # Haiti's government has limited social media presence due to
+    # ongoing crisis. Most signal comes from analyst/NGO accounts.
+    ('mss-mission.bsky.social',         0.95, ['haiti'],
+        'MSS (Multinational Security Support) Mission -- Kenya-led security [SPECULATIVE NEW]'),
+
+
+    # ═══════════════════════════════════════════════════════════
+    # COMMODITY SPECIALISTS (NEW v1.1.0)
+    # ═══════════════════════════════════════════════════════════
+    # Cross-target accounts that surface commodity-specific signals
+    # for the convergence tracker (oil, copper, soybeans, gas).
+    # Weight kept low (0.80-0.85) since they're specialist sources,
+    # not primary policy actors.
+    ('reutersbiz.bsky.social',          0.85, ['*'],
+        'Reuters Business -- commodity prices, market reactions [SPECULATIVE NEW]'),
+    ('argusmedia.bsky.social',          0.85, ['*'],
+        'Argus Media -- oil/gas/metals price reporting [SPECULATIVE NEW]'),
+    ('mining-com.bsky.social',          0.85, ['chile', 'peru', 'brazil', 'mexico'],
+        'Mining.com -- LatAm copper/lithium/iron ore coverage [SPECULATIVE NEW]'),
+    ('bnamericas.bsky.social',          0.85, ['chile', 'peru', 'brazil', 'colombia', 'mexico', 'venezuela', '*'],
+        'BNamericas -- LatAm energy/mining business intelligence [SPECULATIVE NEW]'),
+
+
+    # ═══════════════════════════════════════════════════════════
+    # REGIONAL ANALYTICAL (existing + NEW v1.1.0)
+    # ═══════════════════════════════════════════════════════════
+    ('americasquarterly.bsky.social',   0.85, ['cuba', 'venezuela', 'mexico', 'brazil', 'colombia', 'chile', 'peru'],
+        'Americas Quarterly -- WHA policy analysis [UNVERIFIED Apr 25]'),
     ('hxiccg.bsky.social',              0.85, ['cuba', 'venezuela'],
-        'Cuba/Venezuela analyst (if native)'),
+        'Cuba/Venezuela analyst (handle origin unclear) [UNVERIFIED Apr 25]'),
+    ('reuterslatam.bsky.social',        0.85, ['*'],
+        'Reuters Latin America bureau [SPECULATIVE NEW]'),
+    ('ap-latam.bsky.social',            0.85, ['*'],
+        'AP Latin America [SPECULATIVE NEW]'),
+    ('ftlatam.bsky.social',             0.85, ['*'],
+        'FT Latin America coverage [SPECULATIVE NEW]'),
+    ('wola.bsky.social',                0.85, ['cuba', 'venezuela', 'mexico', 'colombia', 'haiti'],
+        'WOLA -- Washington Office on Latin America, human rights focus [SPECULATIVE NEW]'),
+    ('thedialogue.bsky.social',         0.85, ['*'],
+        'Inter-American Dialogue -- regional policy think tank [SPECULATIVE NEW]'),
 ]
 
 
@@ -126,15 +281,15 @@ def fetch_bluesky_account(handle, weight=1.0, limit=20, timeout=BLUESKY_TIMEOUT)
     """
     Fetch recent posts from a single Bluesky account.
 
-    Uses the public AppView API — no authentication required.
+    Uses the public AppView API -- no authentication required.
     Returns list of article dicts matching the WHA backend schema.
 
-    On 404 (handle doesn't exist) → logs and returns []
-    On 429 (rate limit) → logs and returns []
-    On network/parse error → logs and returns []
+    On 400/404 (handle doesn't exist) -> logs and returns []
+    On 429 (rate limit) -> logs and returns []
+    On network/parse error -> logs and returns []
     """
     headers = {
-        'User-Agent': 'AsifahAnalytics-WHA/1.0 (+https://asifahanalytics.com)',
+        'User-Agent': 'AsifahAnalytics-WHA/1.1 (+https://asifahanalytics.com)',
         'Accept': 'application/json',
     }
     params = {'actor': handle, 'limit': limit}
@@ -142,12 +297,13 @@ def fetch_bluesky_account(handle, weight=1.0, limit=20, timeout=BLUESKY_TIMEOUT)
     try:
         resp = requests.get(BLUESKY_API, headers=headers, params=params, timeout=timeout)
 
-        if resp.status_code == 404:
-            # 404 means handle doesn't exist. Log once — we won't retry.
-            print(f'[Bluesky WHA] @{handle}: handle not found (404) — consider removing from list')
+        if resp.status_code in (400, 404):
+            # 400/404 means handle doesn't exist or govmirror failed.
+            # Log once -- we won't retry. v1.1.0: also catches 400 from govmirrors.
+            print(f'[Bluesky WHA] @{handle}: handle not found ({resp.status_code}) -- consider removing from list')
             return []
         if resp.status_code == 429:
-            print(f'[Bluesky WHA] @{handle}: rate-limited (429) — backing off')
+            print(f'[Bluesky WHA] @{handle}: rate-limited (429) -- backing off')
             return []
         if resp.status_code != 200:
             print(f'[Bluesky WHA] @{handle}: HTTP {resp.status_code}')
@@ -214,6 +370,7 @@ def fetch_bluesky_for_target(target, days=7, max_posts_per_account=20):
     Returns list of article dicts ready for downstream scoring.
 
     For Cuba: this is the primary path for Trump Truth Social capture.
+    For Chile/Peru: this is a key path for copper convergence signals.
     """
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     all_posts = []
@@ -247,7 +404,7 @@ def fetch_bluesky_for_target(target, days=7, max_posts_per_account=20):
             seen_urls.add(p['url'])
             all_posts.append(p)
 
-        # Light politeness delay — Bluesky public API is fast but we
+        # Light politeness delay -- Bluesky public API is fast but we
         # don't want to look abusive
         time.sleep(0.2)
 
