@@ -1,6 +1,6 @@
 """
-Asifah Analytics -- Western Hemisphere Backend v1.0.0
-March 2026
+Asifah Analytics -- Western Hemisphere Backend v1.2.0
+March 2026 (v1.2.0: May 2026 -- Chile + Peru added)
 
 Flask backend for the Western Hemisphere (SOUTHCOM) regional dashboard.
 Covers: Venezuela, Cuba, Haiti, Panama, Colombia, Mexico, Brazil, United States
@@ -21,16 +21,18 @@ ENDPOINTS:
   /api/military-posture/<target>       -- military posture for specific target
 
 COUNTRIES:
-  venezuela, cuba, haiti, panama, colombia, mexico, brazil, us
+  venezuela, cuba, haiti, panama, colombia, mexico, brazil, us, chile, peru
 
 CONFLICT % BASE SCORES (higher = worse):
   haiti      85  -- failed state, MSS gang territorial control
   venezuela  70  -- post-Maduro transition, armed factions, US involvement
   cuba       45  -- declining regime, blackouts, protest suppression
+  peru       42  -- presidential instability, mining-region violence, VRAEM
   colombia   40  -- ELN/FARC active, state functioning
   mexico     38  -- cartel military ops, state not collapsed
   brazil     20  -- regional power, low kinetic risk
   panama     18  -- functioning state, Canal sovereignty pressure
+  chile      15  -- stable democracy, mining strikes, Mapuche conflict
   us         12  -- scaffold only, full scoring Phase 2
 
 COPYRIGHT 2025-2026 Asifah Analytics. All rights reserved.
@@ -84,7 +86,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # CONFIGURATION
 # ========================================
 
-VERSION = '1.0.0'
+VERSION = '1.2.0'
 
 UPSTASH_REDIS_URL   = os.environ.get('UPSTASH_REDIS_URL')
 UPSTASH_REDIS_TOKEN = os.environ.get('UPSTASH_REDIS_TOKEN')
@@ -99,7 +101,8 @@ CACHE_FILE_DIR      = '/tmp'
 # Supported countries
 WHA_COUNTRIES = [
     'venezuela', 'cuba', 'haiti', 'panama',
-    'colombia', 'mexico', 'brazil', 'us'
+    'colombia', 'mexico', 'brazil', 'us',
+    'chile', 'peru',  # v1.2.0 (May 2026) -- copper convergence anchors
 ]
 
 # ========================================
@@ -147,6 +150,9 @@ WHA_PRESSURE_SOURCES = {
     'colombia':  {'external': None,     'internal': 'colombia'},  # partnership not pressure
     'panama':    {'external': 'us',     'internal': None},      # Canal posture
     'brazil':    {'external': None,     'internal': 'brazil'},
+    # v1.2.0: Chile + Peru (copper convergence anchors)
+    'chile':     {'external': None,     'internal': None},      # stable democracy; no military pressure vector yet
+    'peru':      {'external': None,     'internal': 'peru'},    # mining-region militarization, VRAEM ops
     # haiti: handled separately via gang-control signals (future work)
 }
 
@@ -817,6 +823,184 @@ COUNTRY_CONFIG = {
             'institutional_stability': +8,
             'military_cohesion': +5,
         }
+    },
+
+    # ════════════════════════════════════════════════════════════
+    # CHILE (NEW v1.2.0) -- Copper convergence anchor
+    # ════════════════════════════════════════════════════════════
+    # World's #1 copper producer (~24% global supply). Stable democracy
+    # with strong institutions. Primary instability vectors:
+    #   - Mapuche territorial conflict in Araucania
+    #   - Codelco / mining sector strikes (copper supply shock signal)
+    #   - Constitutional reform aftermath (2022/2023 dual rejections)
+    #   - Lithium Triangle / Argentina-Bolivia border politics
+    'chile': {
+        'name': 'Chile',
+        'flag': '🇨🇱',
+        'base_conflict_pct': 15,
+        'context': 'Stable democracy with social mobilization vectors. World #1 copper producer (~24% global). Mapuche conflict in Araucania, periodic mining strikes (Codelco/Escondida), Lithium Triangle politics. Lower kinetic risk than other WHA states.',
+        'labels': {
+            'low':    'Stable',
+            'medium': 'Social Tension',
+            'high':   'Crisis',
+            'surge':  'Active Crisis'
+        },
+        'gdelt_queries_en': [
+            'chile mapuche conflict araucania',
+            'chile copper strike codelco',
+            'chile mining protest',
+            'chile boric protest',
+            'chile constitutional crisis',
+            'chile lithium argentina bolivia',
+            'chile escondida bhp strike',
+            'chile carabineros violence',
+            'chile state of emergency',
+        ],
+        'gdelt_queries_es': [
+            'chile mapuche araucania conflicto',
+            'chile codelco huelga cobre',
+            'chile mineria protesta',
+            'chile estado emergencia',
+            'chile boric crisis',
+            'chile carabineros violencia',
+            'chile escondida huelga',
+        ],
+        'newsapi_queries': [
+            'Chile copper mining strike',
+            'Chile Mapuche Araucania conflict',
+            'Chile constitutional reform crisis',
+            'Chile Codelco production disruption',
+        ],
+        'rss_feeds': [
+            'https://news.google.com/rss/search?q=chile+copper+OR+codelco+OR+mining+strike&hl=en&gl=US&ceid=US:en',
+            'https://news.google.com/rss/search?q=chile+mapuche+OR+araucania+OR+state+of+emergency&hl=en&gl=US&ceid=US:en',
+            # Reddit RSS feeds (subreddits expose .rss endpoints)
+            'https://www.reddit.com/r/chile/.rss',
+            'https://www.reddit.com/r/copper/.rss',
+        ],
+        'keywords_escalation': [
+            # Mapuche conflict
+            'mapuche attack', 'araucania violence', 'mapuche arson',
+            'cam attack', 'weichan auka mapu', 'chile state emergency',
+            'araucania state emergency', 'mapuche armed',
+            # Mining disruption
+            'codelco strike', 'escondida strike', 'chuquicamata strike',
+            'chile copper strike', 'chile mining shutdown', 'mining production halt',
+            'antofagasta strike', 'collahuasi strike',
+            # Political crisis
+            'chile constitutional crisis', 'boric impeachment', 'boric crisis',
+            'chile protest crackdown', 'chile mass protest', 'chile riots',
+            # Lithium Triangle tensions
+            'chile bolivia border', 'chile argentina lithium dispute',
+            'chile lithium nationalization',
+            # Spanish (regional press)
+            'chile huelga cobre', 'chile araucania ataque', 'chile estallido social',
+        ],
+        'keywords_stability': [
+            'chile stability', 'chile elections normal', 'chile economy',
+            'codelco production normal', 'chile peace mapuche',
+            'chile peaceful protest', 'chile dialogue agreement',
+            'chile constitutional process complete', 'chile mining agreement',
+        ],
+        'score_modifiers': {
+            'mapuche_attack':        -8,
+            'mining_strike_active':  -6,
+            'copper_supply_shock':   -10,  # has global market implications
+            'state_of_emergency':    -10,
+            'constitutional_crisis': -8,
+            'mass_protest':          -5,
+            'mining_agreement':      +6,
+            'political_stability':   +6,
+            'lithium_deal':          +4,
+        }
+    },
+
+    # ════════════════════════════════════════════════════════════
+    # PERU (NEW v1.2.0) -- Copper #2 + presidential instability
+    # ════════════════════════════════════════════════════════════
+    # World's #2 copper producer (~10% global supply). Multiple presidents
+    # in 5 years; Boluarte legitimacy crisis ongoing. Las Bambas mine is
+    # the canonical disruption site. VRAEM (Apurimac/Ene/Mantaro valley)
+    # has Shining Path remnants + cocaine cultivation.
+    'peru': {
+        'name': 'Peru',
+        'flag': '🇵🇪',
+        'base_conflict_pct': 42,
+        'context': 'Presidential instability (5 presidents in 5 years). Boluarte legitimacy crisis. Mining-region violence centered on Las Bambas / Apurimac. VRAEM cocaine + Shining Path remnants. Castillo aftermath ongoing. World #2 copper producer.',
+        'labels': {
+            'low':    'Managed Instability',
+            'medium': 'Political Stress',
+            'high':   'Crisis',
+            'surge':  'State Crisis'
+        },
+        'gdelt_queries_en': [
+            'peru boluarte crisis impeachment',
+            'peru las bambas mining blockade',
+            'peru mining protest violence',
+            'peru shining path vraem',
+            'peru castillo trial',
+            'peru congress impeachment',
+            'peru protest crackdown',
+            'peru copper production halt',
+            'peru antamina cuajone strike',
+            'peru cocaine vraem military',
+        ],
+        'gdelt_queries_es': [
+            'peru boluarte crisis vacancia',
+            'peru las bambas mineria bloqueo',
+            'peru mineria protesta violencia',
+            'peru sendero luminoso vraem',
+            'peru castillo juicio',
+            'peru protesta represion',
+            'peru cobre produccion',
+        ],
+        'newsapi_queries': [
+            'Peru Boluarte political crisis',
+            'Peru Las Bambas mining blockade',
+            'Peru Castillo trial congress',
+            'Peru VRAEM Shining Path military operation',
+        ],
+        'rss_feeds': [
+            'https://news.google.com/rss/search?q=peru+boluarte+OR+impeachment+OR+crisis&hl=en&gl=US&ceid=US:en',
+            'https://news.google.com/rss/search?q=peru+las+bambas+OR+copper+strike+OR+mining+blockade&hl=en&gl=US&ceid=US:en',
+            'https://news.google.com/rss/search?q=peru+vraem+OR+shining+path+OR+sendero&hl=en&gl=US&ceid=US:en',
+            # Reddit RSS feeds
+            'https://www.reddit.com/r/peru/.rss',
+            'https://www.reddit.com/r/copper/.rss',
+        ],
+        'keywords_escalation': [
+            # Mining disruption (commodity-critical)
+            'las bambas blockade', 'las bambas closed', 'las bambas halt',
+            'peru copper blockade', 'peru mining blockade', 'antamina strike',
+            'cuajone strike', 'peru copper production halt',
+            'mining region violence', 'peru mining protest violence',
+            # Political instability
+            'boluarte impeachment', 'boluarte vacancia', 'boluarte crisis',
+            'peru congress crisis', 'peru president impeached',
+            'peru constitutional crisis', 'peru political prisoners',
+            'castillo trial', 'castillo conviction',
+            # Insurgent / criminal violence
+            'shining path attack', 'sendero luminoso ataque', 'vraem attack',
+            'peru cocaine raid', 'peru police killed', 'peru military killed',
+            # Mass mobilization
+            'peru mass protest', 'peru protest crackdown', 'peru protest deaths',
+            'peru state of emergency', 'peru estado emergencia',
+        ],
+        'keywords_stability': [
+            'peru election normal', 'peru economic stability', 'peru mining agreement',
+            'las bambas operating', 'peru constitutional process',
+            'peru dialogue agreement', 'peru ceasefire mining',
+        ],
+        'score_modifiers': {
+            'las_bambas_disruption':  -10,  # canonical commodity supply-shock signal
+            'mining_blockade':        -8,
+            'boluarte_impeachment':   -10,
+            'mass_protest_deaths':    -12,
+            'shining_path_attack':    -8,
+            'state_of_emergency':     -8,
+            'mining_agreement':       +6,
+            'political_stabilization': +6,
+        }
     }
 }
 
@@ -1077,8 +1261,18 @@ def scan_country(country_id, days=7):
         # and state media that don't show up in English search.
         spanish_queries = config.get('gdelt_queries_es', [])[:2]
         for query in spanish_queries:
-            # Bias country to country_id for regional source weighting; fall back to 'us' if unsupported
-            brave_country = country_id if country_id in ('mx', 've', 'co', 'cl', 'ar') else 'us'
+            # Bias country to country_id for regional source weighting; fall back to 'us' if unsupported.
+            # v1.2.0 fix: map full WHA country_id names to Brave 2-letter codes.
+            brave_country_map = {
+                'mexico':    'mx',
+                'venezuela': 've',
+                'colombia':  'co',
+                'chile':     'cl',
+                'peru':      'pe',
+                'brazil':    'br',
+                'cuba':      'us',  # Brave's CU coverage is too limited; US bias surfaces miami/dissident press
+            }
+            brave_country = brave_country_map.get(country_id, 'us')
             articles = fetch_brave_news(query, count=15, freshness='pw',
                                          search_lang='es', country=brave_country)
             all_articles.extend(articles)
@@ -1538,9 +1732,10 @@ WHA_TRAVEL_ADVISORY_URLS = {
     'colombia':   'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/colombia-travel-advisory.html',
     'mexico':     'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/mexico-travel-advisory.html',
     'brazil':     'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/brazil-travel-advisory.html',
+    'chile':      'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/chile-travel-advisory.html',
+    'peru':       'https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/peru-travel-advisory.html',
     'us':         None,
 }
-
 ADVISORY_LEVEL_COLORS = {
     1: '#2563eb',
     2: '#d97706',
@@ -1647,9 +1842,6 @@ _start_background_refresh()
 # Start Cuba rhetoric tracker background refresh (12h cycle, 90s boot delay)
 if CUBA_RHETORIC_AVAILABLE:
     start_cuba_rhetoric_refresh()
-
-if __name__ == '__main__':
-    app.run(debug=False, host='0.0.0.0', port=5000)
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=5000)
