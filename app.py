@@ -87,6 +87,18 @@ except ImportError as e:
     PERU_RHETORIC_AVAILABLE = False
     print(f'[WHA Backend] WARNING: Peru rhetoric tracker unavailable ({e})')
 
+# Chile Rhetoric Tracker (v1.0.0 May 2026) — second Peru-pattern tracker.
+# 7 actors / 4-vector composite (Domestic / Resource / US / China alignment).
+# Cautious China posture (no Chancay-equivalent); copper #1 + lithium #2 globally.
+# Reads commodity supply-risk fingerprints via WHA-local commodity proxy.
+try:
+    from rhetoric_tracker_chile import register_chile_rhetoric_endpoints
+    CHILE_RHETORIC_AVAILABLE = True
+    print('[WHA Backend] Chile rhetoric tracker module loaded')
+except ImportError as e:
+    CHILE_RHETORIC_AVAILABLE = False
+    print(f'[WHA Backend] WARNING: Chile rhetoric tracker unavailable ({e})')
+
 # WHA Commodity Proxy (v1.0.0 May 2026) — caches ME-backend commodity data
 # in WHA-local Redis so stability pages + rhetoric trackers don't reach
 # across to ME on every read. New in this version: passthrough for the
@@ -1497,9 +1509,14 @@ if CUBA_RHETORIC_AVAILABLE:
 if PERU_RHETORIC_AVAILABLE:
     register_peru_rhetoric_endpoints(app)
 
+# Register Chile rhetoric tracker endpoints
+# (/api/rhetoric/chile, /api/rhetoric/chile/debug)
+if CHILE_RHETORIC_AVAILABLE:
+    register_chile_rhetoric_endpoints(app)
+
 # Register WHA Regional BLUF endpoints
 # (/api/rhetoric/wha/bluf, /api/rhetoric/wha/bluf/debug)
-# Reads from rhetoric:cuba:latest, rhetoric:peru:latest, and future tracker caches.
+# Reads from rhetoric:cuba:latest, rhetoric:peru:latest, rhetoric:chile:latest, and future tracker caches.
 # Synthesizes top_signals[] for downstream Global Pressure Index consumption.
 if WHA_BLUF_AVAILABLE:
     register_wha_bluf_routes(app)
@@ -1515,6 +1532,7 @@ def health():
         'military_available': MILITARY_AVAILABLE,
         'cuba_rhetoric_available': CUBA_RHETORIC_AVAILABLE,
         'peru_rhetoric_available': PERU_RHETORIC_AVAILABLE,
+        'chile_rhetoric_available': CHILE_RHETORIC_AVAILABLE,
         'wha_bluf_available': WHA_BLUF_AVAILABLE,
         'wha_commodity_proxy_available': WHA_COMMODITY_PROXY_AVAILABLE,
         'redis_configured': bool(UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN),
