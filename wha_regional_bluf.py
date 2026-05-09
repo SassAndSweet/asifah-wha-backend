@@ -53,6 +53,7 @@ UPSTASH_REDIS_TOKEN = os.environ.get('UPSTASH_REDIS_TOKEN', '')
 # Source caches (written by respective trackers)
 TRACKER_KEYS = {
     'cuba':      'rhetoric:cuba:latest',
+    'peru':      'rhetoric:peru:latest',
     # Future WHA trackers slot in here:
     # 'venezuela':  'rhetoric:venezuela:latest',
     # 'haiti':      'rhetoric:haiti:latest',
@@ -65,6 +66,7 @@ TRACKER_KEYS = {
 
 THEATRE_FLAGS = {
     'cuba':      '\U0001f1e8\U0001f1fa',  # 🇨🇺
+    'peru':      '\U0001f1f5\U0001f1ea',  # 🇵🇪
     'venezuela': '\U0001f1fb\U0001f1ea',  # 🇻🇪
     'haiti':     '\U0001f1ed\U0001f1f9',  # 🇭🇹
     'mexico':    '\U0001f1f2\U0001f1fd',  # 🇲🇽
@@ -76,6 +78,7 @@ THEATRE_FLAGS = {
 
 THEATRE_DISPLAY = {
     'cuba':      'CUBA',
+    'peru':      'PERU',
     'venezuela': 'VENEZUELA',
     'haiti':     'HAITI',
     'mexico':    'MEXICO',
@@ -431,6 +434,66 @@ def _synthesize_top_signals_legacy(theatre, raw_data, threat_int, score, so_what
                 'long_text':  f'CUBA adversary access L{adversary_access} — RU/CN/IR axis activity detected.',
             })
 
+    # PERU-SPECIFIC vector signals (4-vector frame)
+    # Peru emits vector_levels {domestic_stability, resource_sector, us_alignment, china_alignment}
+    # Map level strings to integers for BLUF priority math, then surface escalatory vectors.
+    if theatre == 'peru':
+        VECTOR_LVL_INT = {'low': 0, 'normal': 1, 'elevated': 2, 'high': 3, 'surge': 4}
+        vector_levels  = _safe_dict(raw_data.get('vector_levels'))
+
+        domestic_lvl = VECTOR_LVL_INT.get(vector_levels.get('domestic_stability'), 0)
+        resource_lvl = VECTOR_LVL_INT.get(vector_levels.get('resource_sector'),   0)
+        us_lvl       = VECTOR_LVL_INT.get(vector_levels.get('us_alignment'),      0)
+        china_lvl    = VECTOR_LVL_INT.get(vector_levels.get('china_alignment'),   0)
+
+        if domestic_lvl >= 2:   # elevated+
+            signals.append({
+                'priority':   7 + domestic_lvl,
+                'category':   'peru_domestic_stability',
+                'theatre':    'peru',
+                'level':      domestic_lvl,
+                'icon':       '🏛️',
+                'color':      '#f59e0b' if domestic_lvl < 3 else '#dc2626',
+                'short_text': f'{flag} PERU: Domestic stability L{domestic_lvl}',
+                'long_text':  f'PERU domestic-stability vector L{domestic_lvl} — presidency / FFAA / VRAEM / Las Bambas channels signaling above baseline.',
+            })
+
+        if resource_lvl >= 2:
+            signals.append({
+                'priority':   8 + resource_lvl,   # resource ranks slightly higher (commodity coupling)
+                'category':   'peru_resource_sector',
+                'theatre':    'peru',
+                'level':      resource_lvl,
+                'icon':       '⛏️',
+                'color':      '#f59e0b' if resource_lvl < 3 else '#dc2626',
+                'short_text': f'{flag} PERU: Resource sector L{resource_lvl}',
+                'long_text':  f'PERU resource-sector vector L{resource_lvl} — mining-sector + Las Bambas rhetoric coupled to global copper / silver supply.',
+            })
+
+        if us_lvl >= 2:
+            signals.append({
+                'priority':   6 + us_lvl,
+                'category':   'peru_us_alignment',
+                'theatre':    'peru',
+                'level':      us_lvl,
+                'icon':       '🦅',
+                'color':      '#3b82f6' if us_lvl < 3 else '#dc2626',
+                'short_text': f'{flag} PERU: U.S. alignment L{us_lvl}',
+                'long_text':  f'PERU U.S.-alignment vector L{us_lvl} — Embassy Lima / INL / SOUTHCOM / FTA channel activity above baseline.',
+            })
+
+        if china_lvl >= 2:
+            signals.append({
+                'priority':   7 + china_lvl,
+                'category':   'peru_china_alignment',
+                'theatre':    'peru',
+                'level':      china_lvl,
+                'icon':       '🚢',
+                'color':      '#dc2626' if china_lvl >= 3 else '#f59e0b',
+                'short_text': f'{flag} PERU: China alignment L{china_lvl}',
+                'long_text':  f'PERU China-alignment vector L{china_lvl} — Chancay megaport / BRI / Chinese mining-investment activity above baseline.',
+            })
+
     signals.sort(key=lambda s: s['priority'], reverse=True)
     return signals
 
@@ -553,6 +616,31 @@ def _build_bluf_prose(posture, trackers):
             else:
                 cuba_desc += " — composite pressure elevated."
             parts.append(cuba_desc)
+        elif theatre == 'peru' and threat >= 2:
+            # Peru uses 4-vector frame: domestic_stability, resource_sector, us_alignment, china_alignment
+            VECTOR_LVL_INT = {'low': 0, 'normal': 1, 'elevated': 2, 'high': 3, 'surge': 4}
+            raw           = data.get('raw', {}) or {}
+            vector_levels = raw.get('vector_levels', {}) or {}
+            domestic_lvl = VECTOR_LVL_INT.get(vector_levels.get('domestic_stability'), 0)
+            resource_lvl = VECTOR_LVL_INT.get(vector_levels.get('resource_sector'),   0)
+            us_lvl       = VECTOR_LVL_INT.get(vector_levels.get('us_alignment'),      0)
+            china_lvl    = VECTOR_LVL_INT.get(vector_levels.get('china_alignment'),   0)
+
+            peru_desc = f"{display} composite L{threat}"
+            vector_phrases = []
+            if domestic_lvl >= 2:
+                vector_phrases.append(f"domestic stability L{domestic_lvl}")
+            if resource_lvl >= 2:
+                vector_phrases.append(f"resource sector L{resource_lvl}")
+            if us_lvl >= 2:
+                vector_phrases.append(f"U.S. alignment L{us_lvl}")
+            if china_lvl >= 2:
+                vector_phrases.append(f"China alignment L{china_lvl}")
+            if vector_phrases:
+                peru_desc += " — " + ", ".join(vector_phrases) + "."
+            else:
+                peru_desc += " — composite pressure elevated."
+            parts.append(peru_desc)
         elif threat >= 3:
             # Generic treatment for other future trackers
             parts.append(f"{display} L{threat} — {ESCALATION_LABELS.get(threat, 'elevated')}.")
