@@ -76,6 +76,29 @@ except ImportError as e:
     WHA_BLUF_AVAILABLE = False
     print(f'[WHA Backend] WARNING: WHA regional BLUF unavailable ({e})')
 
+# Peru Rhetoric Tracker (v1.0.0 May 2026) — first Peru tracker shipped.
+# 8 actors / 4-vector composite (Domestic / Resource / US / China alignment).
+# Reads commodity supply-risk fingerprints via WHA-local commodity proxy.
+try:
+    from rhetoric_tracker_peru import register_peru_rhetoric_endpoints
+    PERU_RHETORIC_AVAILABLE = True
+    print('[WHA Backend] Peru rhetoric tracker module loaded')
+except ImportError as e:
+    PERU_RHETORIC_AVAILABLE = False
+    print(f'[WHA Backend] WARNING: Peru rhetoric tracker unavailable ({e})')
+
+# WHA Commodity Proxy (v1.0.0 May 2026) — caches ME-backend commodity data
+# in WHA-local Redis so stability pages + rhetoric trackers don't reach
+# across to ME on every read. New in this version: passthrough for the
+# /api/commodity-fingerprint/* endpoints (cross-tracker contract).
+try:
+    from commodity_proxy_wha import register_wha_commodity_proxy
+    WHA_COMMODITY_PROXY_AVAILABLE = True
+    print('[WHA Backend] WHA commodity proxy module loaded')
+except ImportError as e:
+    WHA_COMMODITY_PROXY_AVAILABLE = False
+    print(f'[WHA Backend] WARNING: WHA commodity proxy unavailable ({e})')
+
 # ========================================
 # FLASK APP INIT
 # ========================================
@@ -1458,14 +1481,25 @@ def _start_background_refresh():
 # FLASK ENDPOINTS
 # ========================================
 
+# Register WHA Commodity Proxy FIRST (before Peru tracker registers — Peru's
+# scan loop will call /api/wha/commodity-fingerprint/peru on first run, and
+# we want the proxy endpoint to exist before that happens).
+if WHA_COMMODITY_PROXY_AVAILABLE:
+    register_wha_commodity_proxy(app)
+
 # Register Cuba rhetoric tracker endpoints
 # (/api/rhetoric/cuba, /summary, /history)
 if CUBA_RHETORIC_AVAILABLE:
     register_cuba_rhetoric_endpoints(app)
 
+# Register Peru rhetoric tracker endpoints
+# (/api/rhetoric/peru, /api/rhetoric/peru/debug)
+if PERU_RHETORIC_AVAILABLE:
+    register_peru_rhetoric_endpoints(app)
+
 # Register WHA Regional BLUF endpoints
 # (/api/rhetoric/wha/bluf, /api/rhetoric/wha/bluf/debug)
-# Reads from rhetoric:cuba:latest (and future WHA tracker caches)
+# Reads from rhetoric:cuba:latest, rhetoric:peru:latest, and future tracker caches.
 # Synthesizes top_signals[] for downstream Global Pressure Index consumption.
 if WHA_BLUF_AVAILABLE:
     register_wha_bluf_routes(app)
@@ -1480,7 +1514,9 @@ def health():
         'countries': WHA_COUNTRIES,
         'military_available': MILITARY_AVAILABLE,
         'cuba_rhetoric_available': CUBA_RHETORIC_AVAILABLE,
+        'peru_rhetoric_available': PERU_RHETORIC_AVAILABLE,
         'wha_bluf_available': WHA_BLUF_AVAILABLE,
+        'wha_commodity_proxy_available': WHA_COMMODITY_PROXY_AVAILABLE,
         'redis_configured': bool(UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN),
         'newsapi_configured': bool(NEWSAPI_KEY),
         'timestamp': datetime.now(timezone.utc).isoformat()
