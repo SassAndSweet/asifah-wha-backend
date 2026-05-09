@@ -55,9 +55,16 @@ import json
 import time
 import threading
 import requests
-import feedparser
 from datetime import datetime, timezone, timedelta
 from flask import jsonify, request
+
+# Optional dependencies — degrade gracefully if missing (mirrors Peru pattern)
+try:
+    import feedparser
+    FEEDPARSER_AVAILABLE = True
+except ImportError:
+    FEEDPARSER_AVAILABLE = False
+    print("[Chile Rhetoric] ⚠️  feedparser unavailable — RSS disabled")
 
 print("[Chile Rhetoric] Module loading...")
 
@@ -485,6 +492,8 @@ def is_cache_fresh(data):
 def fetch_rss_articles(feed_id, feed_config, max_articles=30):
     """Fetch + parse one RSS feed."""
     out = []
+    if not FEEDPARSER_AVAILABLE:
+        return out
     try:
         parsed = feedparser.parse(feed_config['url'])
         for entry in parsed.entries[:max_articles]:
@@ -502,6 +511,9 @@ def fetch_rss_articles(feed_id, feed_config, max_articles=30):
 
 
 def fetch_all_rss():
+    if not FEEDPARSER_AVAILABLE:
+        print("[Chile Rhetoric] RSS: skipped (feedparser unavailable)")
+        return []
     all_articles = []
     for feed_id, cfg in RSS_FEEDS.items():
         all_articles.extend(fetch_rss_articles(feed_id, cfg))
