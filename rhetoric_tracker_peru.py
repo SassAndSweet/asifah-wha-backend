@@ -64,16 +64,18 @@ except ImportError:
     FEEDPARSER_AVAILABLE = False
     print("[Peru Rhetoric] ⚠️  feedparser unavailable — RSS disabled")
 
-# Try to import the commodity-tracker fingerprint readers (cross-tracker contract)
-try:
-    from commodity_tracker import (
-        read_country_supply_risk,
-        read_all_supply_risks_for_country,
-    )
-    COMMODITY_FINGERPRINT_AVAILABLE = True
-except ImportError:
-    COMMODITY_FINGERPRINT_AVAILABLE = False
-    print("[Peru Rhetoric] ⚠️  commodity_tracker fingerprint helpers unavailable")
+# Cross-tracker commodity fingerprints — read via local WHA proxy.
+# Architecture note: rhetoric_tracker_peru lives on the WHA backend, but
+# commodity_tracker.py lives on the ME backend. We don't import across
+# backends — instead, the WHA backend has commodity_proxy_wha.py which
+# caches commodity fingerprints in WHA-local Redis with a 1-hour TTL.
+# This tracker calls the WHA-local proxy endpoint (same Flask app —
+# resolves over localhost or the public URL with negligible overhead).
+WHA_BACKEND_SELF_URL = os.environ.get(
+    'WHA_BACKEND_SELF_URL',
+    'http://localhost:10000'  # default Render port for in-process calls
+)
+COMMODITY_FINGERPRINT_AVAILABLE = True  # always — we use HTTP proxy, not import
 
 print("[Peru Rhetoric] Module loading...")
 
@@ -1007,15 +1009,26 @@ def _score_actor_articles(articles_for_actor, actor_id):
 # ============================================
 def _read_commodity_pressure_for_peru():
     """
-    Read commodity supply-risk fingerprints for Peru's exposed commodities.
+    Read commodity supply-risk fingerprints for Peru's exposed commodities
+    via the WHA-local commodity proxy (commodity_proxy_wha.py).
+
+    The proxy caches ME-backend fingerprints in WHA Redis with 1-hour TTL,
+    so this call is a cheap localhost hit on the proxy — no cross-backend
+    HTTP latency unless the WHA-local cache misses.
+
     Returns dict {commodity_id: risk_dict} for any active pressure.
+    Returns {} on error / empty / proxy unavailable — graceful degradation.
     """
-    if not COMMODITY_FINGERPRINT_AVAILABLE:
-        return {}
     try:
-        return read_all_supply_risks_for_country('peru')
+        url = f"{WHA_BACKEND_SELF_URL}/api/wha/commodity-fingerprint/peru"
+        resp = requests.get(url, timeout=5)
+        if resp.status_code != 200:
+            return {}
+        data = resp.json()
+        # Proxy returns {fingerprints: {commodity_id: risk_dict}, ...}
+        return data.get('fingerprints', {}) or {}
     except Exception as e:
-        print(f"[Peru Rhetoric] commodity fingerprint read error: {str(e)[:120]}")
+        print(f"[Peru Rhetoric] commodity proxy read error: {str(e)[:120]}")
         return {}
 
 
@@ -1213,6 +1226,16 @@ def scan_peru_rhetoric(force=False, days=7):
         default='low',
     )
 
+    # ── BLUF compatibility shim ──
+    # wha_regional_bluf.py's _normalize_tracker_data() expects an integer
+    # theatre_level (0-5) and a 0-100 theatre_score. Peru emits a
+    # categorical composite_level + a free-running composite_score; map
+    # them so the regional BLUF can ingest Peru cleanly alongside Cuba.
+    LEVEL_TO_THEATRE_INT = {'low': 0, 'normal': 1, 'elevated': 2, 'high': 3, 'surge': 4}
+    theatre_level = LEVEL_TO_THEATRE_INT.get(composite_level, 0)
+    # Cap theatre_score at 100 — composite_score is unbounded by design
+    theatre_score = min(100, int(composite_score))
+
     scan_time = round(time.time() - scan_start, 1)
 
     result = {
@@ -1220,6 +1243,9 @@ def scan_peru_rhetoric(force=False, days=7):
         'country':               'peru',
         'composite_score':       composite_score,
         'composite_level':       composite_level,
+        # BLUF compatibility shim — see definitions above
+        'theatre_level':         theatre_level,
+        'theatre_score':         theatre_score,
         'vector_scores':         vector_scores,
         'vector_levels':         vector_levels,
         'actor_summaries':       actor_summaries,
