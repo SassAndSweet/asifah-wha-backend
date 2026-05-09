@@ -348,7 +348,7 @@ def get_commodity_fingerprint_pair(country, commodity, force=False):
 # WHA-active stability/rhetoric pages get their commodity pressure +
 # fingerprints proactively refreshed so users don't see slow first-loads.
 # Add new countries here as their pages ship.
-PROACTIVE_REFRESH_TARGETS = ['peru', 'cuba']
+PROACTIVE_REFRESH_TARGETS = ['peru', 'cuba', 'chile']
 
 _refresh_lock = threading.Lock()
 _last_pressure_refresh    = {}   # target -> ts
