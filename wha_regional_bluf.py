@@ -54,6 +54,7 @@ UPSTASH_REDIS_TOKEN = os.environ.get('UPSTASH_REDIS_TOKEN', '')
 TRACKER_KEYS = {
     'cuba':      'rhetoric:cuba:latest',
     'peru':      'rhetoric:peru:latest',
+    'chile':     'rhetoric:chile:latest',
     # Future WHA trackers slot in here:
     # 'venezuela':  'rhetoric:venezuela:latest',
     # 'haiti':      'rhetoric:haiti:latest',
@@ -67,6 +68,7 @@ TRACKER_KEYS = {
 THEATRE_FLAGS = {
     'cuba':      '\U0001f1e8\U0001f1fa',  # 🇨🇺
     'peru':      '\U0001f1f5\U0001f1ea',  # 🇵🇪
+    'chile':     '\U0001f1e8\U0001f1f1',  # 🇨🇱
     'venezuela': '\U0001f1fb\U0001f1ea',  # 🇻🇪
     'haiti':     '\U0001f1ed\U0001f1f9',  # 🇭🇹
     'mexico':    '\U0001f1f2\U0001f1fd',  # 🇲🇽
@@ -79,6 +81,7 @@ THEATRE_FLAGS = {
 THEATRE_DISPLAY = {
     'cuba':      'CUBA',
     'peru':      'PERU',
+    'chile':     'CHILE',
     'venezuela': 'VENEZUELA',
     'haiti':     'HAITI',
     'mexico':    'MEXICO',
@@ -494,6 +497,67 @@ def _synthesize_top_signals_legacy(theatre, raw_data, threat_int, score, so_what
                 'long_text':  f'PERU China-alignment vector L{china_lvl} — Chancay megaport / BRI / Chinese mining-investment activity above baseline.',
             })
 
+    # CHILE-SPECIFIC vector signals (4-vector frame, mirrors Peru pattern)
+    # Chile-specific framing: copper #1 + lithium #2 globally; Mapuche conflict
+    # replaces VRAEM; constitutional politics replaces FFAA; cautious China posture
+    # (no Chancay-equivalent flagship — lithium dependency is structural).
+    if theatre == 'chile':
+        VECTOR_LVL_INT = {'low': 0, 'normal': 1, 'elevated': 2, 'high': 3, 'surge': 4}
+        vector_levels  = _safe_dict(raw_data.get('vector_levels'))
+
+        domestic_lvl = VECTOR_LVL_INT.get(vector_levels.get('domestic_stability'), 0)
+        resource_lvl = VECTOR_LVL_INT.get(vector_levels.get('resource_sector'),   0)
+        us_lvl       = VECTOR_LVL_INT.get(vector_levels.get('us_alignment'),      0)
+        china_lvl    = VECTOR_LVL_INT.get(vector_levels.get('china_alignment'),   0)
+
+        if domestic_lvl >= 2:
+            signals.append({
+                'priority':   7 + domestic_lvl,
+                'category':   'chile_domestic_stability',
+                'theatre':    'chile',
+                'level':      domestic_lvl,
+                'icon':       '🏛️',
+                'color':      '#f59e0b' if domestic_lvl < 3 else '#dc2626',
+                'short_text': f'{flag} CHILE: Domestic stability L{domestic_lvl}',
+                'long_text':  f'CHILE domestic-stability vector L{domestic_lvl} — presidency / Mapuche conflict / constitutional-politics channels signaling above baseline.',
+            })
+
+        if resource_lvl >= 2:
+            signals.append({
+                'priority':   8 + resource_lvl,
+                'category':   'chile_resource_sector',
+                'theatre':    'chile',
+                'level':      resource_lvl,
+                'icon':       '⛏️',
+                'color':      '#f59e0b' if resource_lvl < 3 else '#dc2626',
+                'short_text': f'{flag} CHILE: Resource sector L{resource_lvl}',
+                'long_text':  f'CHILE resource-sector vector L{resource_lvl} — Codelco / Escondida / SQM / Albemarle rhetoric coupled to global copper (#1) + lithium (#2) supply.',
+            })
+
+        if us_lvl >= 2:
+            signals.append({
+                'priority':   6 + us_lvl,
+                'category':   'chile_us_alignment',
+                'theatre':    'chile',
+                'level':      us_lvl,
+                'icon':       '🦅',
+                'color':      '#3b82f6' if us_lvl < 3 else '#dc2626',
+                'short_text': f'{flag} CHILE: U.S. alignment L{us_lvl}',
+                'long_text':  f'CHILE U.S.-alignment vector L{us_lvl} — Embassy Santiago / SOUTHCOM / strategic-minerals dialog / FTA activity above baseline.',
+            })
+
+        if china_lvl >= 2:
+            signals.append({
+                'priority':   7 + china_lvl,
+                'category':   'chile_china_alignment',
+                'theatre':    'chile',
+                'level':      china_lvl,
+                'icon':       '🐉',
+                'color':      '#dc2626' if china_lvl >= 3 else '#f59e0b',
+                'short_text': f'{flag} CHILE: China alignment L{china_lvl}',
+                'long_text':  f'CHILE China-alignment vector L{china_lvl} — Tianqi-SQM / BYD-Maricunga / Ganfeng-Codelco / FTA channel activity above baseline.',
+            })
+
     signals.sort(key=lambda s: s['priority'], reverse=True)
     return signals
 
@@ -641,6 +705,32 @@ def _build_bluf_prose(posture, trackers):
             else:
                 peru_desc += " — composite pressure elevated."
             parts.append(peru_desc)
+        elif theatre == 'chile' and threat >= 2:
+            # Chile uses 4-vector frame: domestic_stability, resource_sector, us_alignment, china_alignment
+            # (Same shape as Peru — vector phrasing identical; domain context differs)
+            VECTOR_LVL_INT = {'low': 0, 'normal': 1, 'elevated': 2, 'high': 3, 'surge': 4}
+            raw           = data.get('raw', {}) or {}
+            vector_levels = raw.get('vector_levels', {}) or {}
+            domestic_lvl = VECTOR_LVL_INT.get(vector_levels.get('domestic_stability'), 0)
+            resource_lvl = VECTOR_LVL_INT.get(vector_levels.get('resource_sector'),   0)
+            us_lvl       = VECTOR_LVL_INT.get(vector_levels.get('us_alignment'),      0)
+            china_lvl    = VECTOR_LVL_INT.get(vector_levels.get('china_alignment'),   0)
+
+            chile_desc = f"{display} composite L{threat}"
+            vector_phrases = []
+            if domestic_lvl >= 2:
+                vector_phrases.append(f"domestic stability L{domestic_lvl}")
+            if resource_lvl >= 2:
+                vector_phrases.append(f"resource sector L{resource_lvl}")
+            if us_lvl >= 2:
+                vector_phrases.append(f"U.S. alignment L{us_lvl}")
+            if china_lvl >= 2:
+                vector_phrases.append(f"China alignment L{china_lvl}")
+            if vector_phrases:
+                chile_desc += " — " + ", ".join(vector_phrases) + "."
+            else:
+                chile_desc += " — composite pressure elevated."
+            parts.append(chile_desc)
         elif threat >= 3:
             # Generic treatment for other future trackers
             parts.append(f"{display} L{threat} — {ESCALATION_LABELS.get(threat, 'elevated')}.")
