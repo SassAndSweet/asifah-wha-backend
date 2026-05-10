@@ -1201,6 +1201,80 @@ def write_stability_fingerprint(scan_result):
 # MAIN SCAN
 # ============================================================
 
+def _read_us_rhetoric_fingerprint():
+    """Read fingerprint:us:current written by the US Rhetoric Tracker.
+
+    Returns dict with at least the following keys (or empty dict if unavailable):
+      us_active, us_composite_score, us_executive_volatility,
+      us_dhs_enforcement_score, us_dhs_enforcement_active,
+      us_branch_divergence_score, us_domestic_fracture_score,
+      us_outbound_targets[], us_judicial_pushback_score, updated_at
+
+    Wire #5 (May 2026): Civil/Social and Political Cohesion dimensions
+    get a small adjustment based on this fingerprint so the stability score
+    reflects current rhetoric volatility (not just keyword news scanning).
+    """
+    fp = _redis_get('fingerprint:us:current')
+    if not fp or not isinstance(fp, dict):
+        return {}
+    return fp
+
+
+def _apply_rhetoric_adjustments(dimensions, rhetoric_fp):
+    """Apply rhetoric-driven adjustments to Civil/Social and Political Cohesion
+    dimensions based on the US Rhetoric Tracker's fingerprint.
+
+    Mutates dimensions in place. Returns dict of adjustments applied (for logging
+    + frontend transparency).
+
+    Calibration philosophy (per Rachel May 2026):
+      - DHS/ICE rhetoric is the highest-volatility civil unrest leading indicator,
+        so its score boosts Civil/Social.
+      - Branch divergence is institutional friction, so it boosts Political Cohesion.
+      - Both adjustments are capped to avoid swamping the underlying keyword score.
+    """
+    adjustments = {}
+    if not rhetoric_fp:
+        return adjustments
+
+    # ── Civil/Social: boost by DHS/ICE enforcement score ──
+    dhs_score = rhetoric_fp.get('us_dhs_enforcement_score', 0) or 0
+    if dhs_score >= 26:  # only adjust if rhetoric is at least Active
+        # Convert rhetoric score to stability bump (cap at +20)
+        bump = min(20, round(dhs_score / 4))
+        if 'civil_social' in dimensions:
+            old_score = dimensions['civil_social'].get('score', 0)
+            new_score = min(100, old_score + bump)
+            dimensions['civil_social']['score'] = new_score
+            dimensions['civil_social']['band'] = score_to_band(new_score)
+            dimensions['civil_social']['rhetoric_adjustment'] = {
+                'source':         'us_rhetoric_dhs',
+                'rhetoric_score': dhs_score,
+                'stability_bump': bump,
+                'rationale':      'DHS/ICE rhetoric is a civil unrest leading indicator.',
+            }
+            adjustments['civil_social'] = bump
+
+    # ── Political Cohesion: boost by branch divergence ──
+    branch_div = rhetoric_fp.get('us_branch_divergence_score', 0) or 0
+    if branch_div >= 26:
+        bump = min(15, round(branch_div / 5))
+        if 'political_cohesion' in dimensions:
+            old_score = dimensions['political_cohesion'].get('score', 0)
+            new_score = min(100, old_score + bump)
+            dimensions['political_cohesion']['score'] = new_score
+            dimensions['political_cohesion']['band'] = score_to_band(new_score)
+            dimensions['political_cohesion']['rhetoric_adjustment'] = {
+                'source':         'us_rhetoric_branch_divergence',
+                'rhetoric_score': branch_div,
+                'stability_bump': bump,
+                'rationale':      'Branch divergence indicates institutional friction.',
+            }
+            adjustments['political_cohesion'] = bump
+
+    return adjustments
+
+
 def run_stability_scan():
     """Run a full US stability scan. Returns the complete scan_result dict."""
     print("[US Stability] === Starting full scan ===")
@@ -1334,6 +1408,21 @@ def run_stability_scan():
         'cyber_infrastructure':    score_cyber_infrastructure(all_articles, baseline_modifiers),
     }
 
+    # ── Wire #5 (May 2026): Read US Rhetoric fingerprint + apply adjustments ──
+    # The rhetoric tracker writes fingerprint:us:current. We read it here and
+    # apply small bumps to Civil/Social (DHS/ICE) and Political Cohesion
+    # (branch divergence) so the stability score reflects rhetoric volatility.
+    print("[US Stability] Phase 2.5: reading US rhetoric fingerprint...")
+    rhetoric_fp = _read_us_rhetoric_fingerprint()
+    if rhetoric_fp:
+        adjustments = _apply_rhetoric_adjustments(dimensions, rhetoric_fp)
+        if adjustments:
+            print(f"[US Stability] Rhetoric adjustments applied: {adjustments}")
+        else:
+            print("[US Stability] Rhetoric fingerprint read but no thresholds met for adjustment")
+    else:
+        print("[US Stability] No rhetoric fingerprint available (tracker may still be on first scan)")
+
     # ── Composite score ──
     composite = compute_composite_score(dimensions, election_cycle)
 
@@ -1357,6 +1446,8 @@ def run_stability_scan():
                 state_signals[state] = state_signals.get(state, 0) + data['count']
 
     # ── Build scan result ──
+    # Wire #5: include rhetoric fingerprint snapshot in the response so the
+    # frontend can display the live coupling.
     elapsed = round(time.time() - scan_start, 1)
     scan_result = {
         'success':              True,
@@ -1364,6 +1455,7 @@ def run_stability_scan():
         'dimensions':           dimensions,
         'top_signals':          top_signals,
         'state_signals':        state_signals,
+        'rhetoric_fingerprint': rhetoric_fp if rhetoric_fp else None,
         'election_cycle':       election_cycle,
         'structural_baseline':  structural_baseline,
         'government_data_freshness': govt.get('data_freshness'),
