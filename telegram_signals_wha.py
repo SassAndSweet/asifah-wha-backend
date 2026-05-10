@@ -236,6 +236,78 @@ BRAZIL_CHANNELS = [
     'valeoficial',           # Vale -- iron ore producer [SPECULATIVE NEW]
 ]
 
+# ========================================
+# UNITED STATES (NEW May 2026)
+# ========================================
+# Coverage strategy:
+#   1. Foreign view of US -- allied + adversarial perspectives
+#      (UK, Israel, Al Jazeera, Reuters, AP)
+#   2. US incident trackers (severe weather, breaking news)
+#   3. US national security adjacent (CISA, threat intel)
+#
+# CRITICAL CONTEXT:
+# - US domestic political TG presence is sparser than RU/IR/Chinese state media
+# - Trump Truth Social posts are NOT directly accessible via Telegram --
+#   they're captured via Bluesky govmirrors instead (see bluesky_signals_wha.py)
+# - Foreign news bureaus (Axios, Times of Israel, Walla, JPost, AJ) are the
+#   highest-value TG signal source for understanding US conditions
+# - Barak Ravid is on X/Twitter primarily; his Axios reporting flows via
+#   GDELT + Bluesky axios.bsky.social mirror
+US_CHANNELS = [
+    # ── US Government (limited TG presence) ──
+    'CISACyber',             # CISA cyber alerts [SPECULATIVE NEW]
+    'FBIofficial',           # FBI alerts (handle uncertain) [SPECULATIVE NEW]
+    'NWSweather',            # National Weather Service [SPECULATIVE NEW]
+    'FEMAgov',               # FEMA disaster declarations [SPECULATIVE NEW]
+
+    # ── Israeli press (heavy US political coverage) ──
+    'TimesofIsrael',         # Times of Israel English [SPECULATIVE NEW]
+    'JerusalemPostEnglish',  # Jerusalem Post English [SPECULATIVE NEW]
+    'haaretzcom',            # Haaretz English [SPECULATIVE NEW]
+    'wallanews_en',          # Walla News English (Barak Ravid's outlet) [SPECULATIVE NEW]
+    'kann_news_en',          # Kan English -- Israeli public broadcaster [SPECULATIVE NEW]
+    'i24news_en',            # i24 News English [SPECULATIVE NEW]
+
+    # ── Al Jazeera English (Qatar; covers US heavily) ──
+    'AJEnglish',             # Al Jazeera English [SPECULATIVE NEW]
+    'AlJazeera_News',        # Al Jazeera News [SPECULATIVE NEW]
+
+    # ── UK press (allied perspective on US) ──
+    'BBCBreaking',           # BBC Breaking News [CONFIRMED -- widely available]
+    'guardian',              # The Guardian [SPECULATIVE NEW]
+    'thetimesuk',            # The Times UK [SPECULATIVE NEW]
+    'telegraphnews',         # The Telegraph [SPECULATIVE NEW]
+    'reuters_breaking',      # Reuters Breaking [SPECULATIVE NEW]
+
+    # ── International wire / major outlets ──
+    'apnews_en',             # AP News [SPECULATIVE NEW]
+    'cnnnews',               # CNN News [SPECULATIVE NEW]
+    'bbcnews_en',            # BBC News English [SPECULATIVE NEW]
+    'NYTimes',               # NY Times (handle uncertain) [SPECULATIVE NEW]
+    'washingtonpost',        # Washington Post [SPECULATIVE NEW]
+    'bloombergnews',         # Bloomberg News [SPECULATIVE NEW]
+    'WSJnews',               # WSJ News [SPECULATIVE NEW]
+    'AxiosNews',             # Axios -- Barak Ravid published here [SPECULATIVE NEW]
+
+    # ── Adversarial coverage of US (already in CROSS_THEATER_GLOBAL but explicit list) ──
+    # IntelSlava, tasnimnews_en, PressTV, FarsNewsAgency, ManarNewsEN
+    # already added to all theatres via _build_channel_list()
+
+    # ── US incident / breaking news aggregators ──
+    'BreakingNewsLive',      # Breaking news aggregator [SPECULATIVE NEW]
+    'OSINTtechnical',        # OSINT technical -- US infrastructure / cyber [SPECULATIVE NEW]
+    'OSINTdefenderUSnews',   # OSINT Defender US-news (variant handle) [SPECULATIVE NEW]
+    'WarMonitorUS',          # War Monitor US-focus [SPECULATIVE NEW]
+
+    # ── US gun violence / mass casualty (specialist trackers) ──
+    'gunviolencearchive',    # Gun Violence Archive [SPECULATIVE NEW]
+
+    # ── US political analysis ──
+    'PunchbowlNews',         # Punchbowl News -- Hill insider [SPECULATIVE NEW]
+    'theatlanticnews',       # The Atlantic [SPECULATIVE NEW]
+    'newyorkermagazine',     # The New Yorker [SPECULATIVE NEW]
+]
+
 
 # ========================================
 # HELPERS
@@ -478,6 +550,22 @@ def fetch_telegram_signals_brazil(hours_back=24):
         return _run_async(channels, hours_back, 'brazil')
     except Exception as e:
         print(f"[Telegram WHA/brazil] ❌ fetch error: {str(e)[:200]}")
+        return []
+
+
+def fetch_telegram_signals_us(hours_back=24):
+    """US theatre fetch -- foreign press coverage of US, incident trackers,
+    national security agencies. Trump Truth Social is captured via Bluesky
+    (govmirrors), not Telegram. Heavy on allied Israeli + UK + Al Jazeera
+    perspectives because they often catch signals US domestic press misses.
+    """
+    if not _telegram_available():
+        return []
+    try:
+        channels = _build_channel_list(US_CHANNELS)
+        return _run_async(channels, hours_back, 'us')
+    except Exception as e:
+        print(f"[Telegram WHA/us] ❌ fetch error: {str(e)[:200]}")
         return []
 
 
