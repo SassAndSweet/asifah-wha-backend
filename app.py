@@ -99,6 +99,42 @@ except ImportError as e:
     CHILE_RHETORIC_AVAILABLE = False
     print(f'[WHA Backend] WARNING: Chile rhetoric tracker unavailable ({e})')
 
+# Economic Indicators US (v1.0.0 May 2026) — FRED + Yahoo Finance, 18 indicators.
+# Stability-framed economic data (S&P, gas, CPI YoY, unemployment, mortgage 30yr +13).
+# Powers the Economic Stability dimension on us-stability.html.
+try:
+    from economic_indicators_us import register_economic_indicators_endpoints
+    ECON_INDICATORS_US_AVAILABLE = True
+    print('[WHA Backend] US economic indicators module loaded')
+except ImportError as e:
+    ECON_INDICATORS_US_AVAILABLE = False
+    print(f'[WHA Backend] WARNING: US economic indicators unavailable ({e})')
+
+# US Government Composition (v1.0.0 May 2026) — election-aware composition.
+# 3-layer cascading fallback: Live Congress.gov API → Cached Redis → Static fallback.
+# Auto-recalibrates structural friction baseline when Congress changes hands.
+try:
+    from us_government_composition import register_government_composition_endpoints
+    US_GOV_COMP_AVAILABLE = True
+    print('[WHA Backend] US government composition module loaded')
+except ImportError as e:
+    US_GOV_COMP_AVAILABLE = False
+    print(f'[WHA Backend] WARNING: US government composition unavailable ({e})')
+
+# US Stability Index (v1.0.0 May 2026) — 6-dimension apolitical scoring engine.
+# Reads from economic_indicators_us + us_government_composition + military fingerprint.
+# Writes stability:us:fingerprint + stability:us:summary for GPI consumption.
+try:
+    from us_stability import (
+        register_us_stability_endpoints,
+        start_periodic_scanner as start_us_stability_scanner,
+    )
+    US_STABILITY_AVAILABLE = True
+    print('[WHA Backend] US stability index module loaded')
+except ImportError as e:
+    US_STABILITY_AVAILABLE = False
+    print(f'[WHA Backend] WARNING: US stability index unavailable ({e})')
+
 # WHA Commodity Proxy (v1.0.0 May 2026) — caches ME-backend commodity data
 # in WHA-local Redis so stability pages + rhetoric trackers don't reach
 # across to ME on every read. New in this version: passthrough for the
@@ -1514,6 +1550,24 @@ if PERU_RHETORIC_AVAILABLE:
 if CHILE_RHETORIC_AVAILABLE:
     register_chile_rhetoric_endpoints(app)
 
+# Register US Economic Indicators endpoints
+# (/api/economic-indicators-us, /api/economic-indicators-us/debug)
+if ECON_INDICATORS_US_AVAILABLE:
+    register_economic_indicators_endpoints(app)
+
+# Register US Government Composition endpoints
+# (/api/us-government, /api/us-government/debug)
+if US_GOV_COMP_AVAILABLE:
+    register_government_composition_endpoints(app)
+
+# Register US Stability Index endpoints
+# (/api/us-stability, /api/us-stability/history,
+#  /api/us-stability/dimension/<id>, /api/us-stability/debug)
+# Reads economic indicators, government composition, military fingerprint.
+# Writes stability:us:fingerprint + stability:us:summary for GPI.
+if US_STABILITY_AVAILABLE:
+    register_us_stability_endpoints(app)
+
 # Register WHA Regional BLUF endpoints
 # (/api/rhetoric/wha/bluf, /api/rhetoric/wha/bluf/debug)
 # Reads from rhetoric:cuba:latest, rhetoric:peru:latest, rhetoric:chile:latest, and future tracker caches.
@@ -1896,6 +1950,12 @@ _start_background_refresh()
 # Start Cuba rhetoric tracker background refresh (12h cycle, 90s boot delay)
 if CUBA_RHETORIC_AVAILABLE:
     start_cuba_rhetoric_refresh()
+
+# Start US Stability periodic scanner (12h cycle, 90s boot delay)
+# Pulls fresh economic indicators, government composition, all keyword dimensions,
+# and military fingerprint reads. Writes composite score + 30-day history.
+if US_STABILITY_AVAILABLE:
+    start_us_stability_scanner()
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=5000)
