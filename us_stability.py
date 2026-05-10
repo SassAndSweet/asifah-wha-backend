@@ -57,6 +57,11 @@ REDIS KEYS:
   Fingerprint:     stability:us:fingerprint
   Cross-theater:   military:us:posture     (READ — from mil tracker)
 
+DATA SOURCES (v1.1.0):
+  RSS feeds  · GDELT · NewsAPI · Brave Search (fallback)
+  Bluesky    · Telegram · Reddit  (NEW — social signal expansion)
+  FRED       · Yahoo Finance · Congress.gov · Military Tracker fingerprint
+
 ENDPOINTS:
   GET /api/us-stability                 — full payload
   GET /api/us-stability/debug           — diagnostics
@@ -74,6 +79,42 @@ import requests
 import urllib.parse
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
+
+
+# ════════════════════════════════════════════════════════════
+# SOCIAL SIGNAL COLLECTORS (v1.1.0 — May 2026)
+# ════════════════════════════════════════════════════════════
+# Three external modules feed social-media signal into the article pool
+# alongside RSS / GDELT / NewsAPI. Each module is wrapped in try/except so
+# the scan keeps working if any single module is missing or broken.
+#
+#   Bluesky:  101 accounts (US gov + journalists + foreign view) — no auth
+#   Telegram: 33 channels  (Israeli, UK, AJ, breaking news) — requires API keys
+#   Reddit:   74 sub/mode pairs (cross-spectrum) — no auth
+# ════════════════════════════════════════════════════════════
+try:
+    from bluesky_signals_wha import fetch_bluesky_for_target
+    BLUESKY_US_AVAILABLE = True
+    print("[US Stability] Bluesky US signals module loaded")
+except ImportError as e:
+    BLUESKY_US_AVAILABLE = False
+    print(f"[US Stability] WARNING: Bluesky unavailable ({e})")
+
+try:
+    from telegram_signals_wha import fetch_telegram_signals_us
+    TELEGRAM_US_AVAILABLE = True
+    print("[US Stability] Telegram US signals module loaded")
+except ImportError as e:
+    TELEGRAM_US_AVAILABLE = False
+    print(f"[US Stability] WARNING: Telegram unavailable ({e})")
+
+try:
+    from reddit_signals_us import fetch_reddit_signals_us
+    REDDIT_US_AVAILABLE = True
+    print("[US Stability] Reddit US signals module loaded")
+except ImportError as e:
+    REDDIT_US_AVAILABLE = False
+    print(f"[US Stability] WARNING: Reddit unavailable ({e})")
 
 
 # ============================================================
@@ -1171,6 +1212,67 @@ def run_stability_scan():
                   '"ransomware" United States']:
             na = _fetch_newsapi(q, max_records=10)
             all_articles.extend(na)
+
+    pre_social_count = len(all_articles)
+    print(f"[US Stability] Pre-social article pool: {pre_social_count}")
+
+    # ── Social media signals (Bluesky / Telegram / Reddit) ──
+    # Each call is independently try/except-wrapped so one source failing
+    # never breaks the scan. All three return the standard article shape.
+
+    # Bluesky (US gov, journalists, foreign view) — fetch_bluesky_for_target
+    # returns posts in WHA-backend schema; transform `url` → `link` + tag
+    # source_type='bluesky' so the frontend Bluesky&Telegram tab catches them.
+    if BLUESKY_US_AVAILABLE:
+        try:
+            bluesky_raw = fetch_bluesky_for_target('us', days=7, max_posts_per_account=20)
+            bluesky_articles = []
+            for p in bluesky_raw:
+                bluesky_articles.append({
+                    'title':       p.get('title') or p.get('text') or '',
+                    'description': p.get('text') or p.get('description') or '',
+                    'link':        p.get('url') or p.get('link') or '',
+                    'published':   p.get('publishedAt') or p.get('published') or '',
+                    'source':      p.get('source') or f"Bluesky/{p.get('handle','unknown')}",
+                    'source_type': 'bluesky',
+                })
+            all_articles.extend(bluesky_articles)
+            print(f"[US Stability] Bluesky: +{len(bluesky_articles)} posts")
+        except Exception as e:
+            print(f"[US Stability] Bluesky fetch error: {str(e)[:200]}")
+
+    # Telegram (Israeli/UK/AJ press, US incident trackers)
+    if TELEGRAM_US_AVAILABLE:
+        try:
+            telegram_raw = fetch_telegram_signals_us(hours_back=7 * 24)
+            telegram_articles = []
+            for p in telegram_raw:
+                telegram_articles.append({
+                    'title':       p.get('title') or p.get('text') or '',
+                    'description': p.get('text') or p.get('description') or '',
+                    'link':        p.get('url') or p.get('link') or '',
+                    'published':   p.get('publishedAt') or p.get('published') or p.get('date') or '',
+                    'source':      p.get('source') or f"Telegram/{p.get('channel','unknown')}",
+                    'source_type': 'telegram',
+                })
+            all_articles.extend(telegram_articles)
+            print(f"[US Stability] Telegram: +{len(telegram_articles)} posts")
+        except Exception as e:
+            print(f"[US Stability] Telegram fetch error: {str(e)[:200]}")
+
+    # Reddit (cross-spectrum political + civil/social + military + economic + cyber)
+    # Already returns articles in the standard shape; no transform needed.
+    if REDDIT_US_AVAILABLE:
+        try:
+            reddit_articles = fetch_reddit_signals_us(days=7, max_per_sub=25)
+            all_articles.extend(reddit_articles)
+            print(f"[US Stability] Reddit: +{len(reddit_articles)} posts")
+        except Exception as e:
+            print(f"[US Stability] Reddit fetch error: {str(e)[:200]}")
+
+    social_added = len(all_articles) - pre_social_count
+    print(f"[US Stability] Social signal total: +{social_added} posts "
+          f"(article pool now {len(all_articles)})")
 
     # Deduplicate by link
     seen_links = set()
