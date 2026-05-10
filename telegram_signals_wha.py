@@ -237,76 +237,57 @@ BRAZIL_CHANNELS = [
 ]
 
 # ========================================
-# UNITED STATES (NEW May 2026)
+# UNITED STATES (v1.2.0 May 10 2026 — POST-AUDIT)
 # ========================================
-# Coverage strategy:
-#   1. Foreign view of US -- allied + adversarial perspectives
-#      (UK, Israel, Al Jazeera, Reuters, AP)
-#   2. US incident trackers (severe weather, breaking news)
-#   3. US national security adjacent (CISA, threat intel)
+# CRITICAL FINDING from May 10 first deploy:
+#   When _build_channel_list() returned 47 channels for the 'us' target,
+#   most needed first-time resolution. Telegram flood-banned the SESSION
+#   for ~11 hours (39,535s wait). Only @CISACyber resolved (returned 0
+#   messages — channel is real but empty).
 #
-# CRITICAL CONTEXT:
-# - US domestic political TG presence is sparser than RU/IR/Chinese state media
-# - Trump Truth Social posts are NOT directly accessible via Telegram --
-#   they're captured via Bluesky govmirrors instead (see bluesky_signals_wha.py)
-# - Foreign news bureaus (Axios, Times of Israel, Walla, JPost, AJ) are the
-#   highest-value TG signal source for understanding US conditions
-# - Barak Ravid is on X/Twitter primarily; his Axios reporting flows via
-#   GDELT + Bluesky axios.bsky.social mirror
+# RECOVERY STRATEGY:
+#   1. Trim US_CHANNELS to FEW high-confidence handles
+#   2. Cross-theater channels (CentcomOfficial, OSINTdefender, ClashReport,
+#      IntelSlava, tasnimnews_en, PressTV, etc.) are ALREADY resolved
+#      from prior Cuba scans, so they'll skip the resolution flood-ban
+#      via Telethon's session cache
+#   3. NEW handles below should be added to the registry over MULTIPLE
+#      scan cycles -- Telegram tolerates a few new resolutions per hour
+#      but not a flood of 30+
+#
+# CONFIRMED RESOLVABLE (from prior production runs):
+#   None yet for US-specific. CISACyber resolves but returns empty.
+#
+# NEW ADDITIONS (small batch — Telegram will resolve over a few scans):
 US_CHANNELS = [
-    # ── US Government (limited TG presence) ──
-    'CISACyber',             # CISA cyber alerts [SPECULATIVE NEW]
-    'FBIofficial',           # FBI alerts (handle uncertain) [SPECULATIVE NEW]
-    'NWSweather',            # National Weather Service [SPECULATIVE NEW]
-    'FEMAgov',               # FEMA disaster declarations [SPECULATIVE NEW]
+    # ── US Government (very limited TG presence) ──
+    'CISACyber',             # CISA cyber alerts [CONFIRMED resolves -- 0 msgs typical]
 
-    # ── Israeli press (heavy US political coverage) ──
-    'TimesofIsrael',         # Times of Israel English [SPECULATIVE NEW]
-    'JerusalemPostEnglish',  # Jerusalem Post English [SPECULATIVE NEW]
-    'haaretzcom',            # Haaretz English [SPECULATIVE NEW]
-    'wallanews_en',          # Walla News English (Barak Ravid's outlet) [SPECULATIVE NEW]
-    'kann_news_en',          # Kan English -- Israeli public broadcaster [SPECULATIVE NEW]
-    'i24news_en',            # i24 News English [SPECULATIVE NEW]
+    # ── UK / international (broadly available; widely subscribed) ──
+    # 'BBCBreaking' is the gold standard but flood-banned in last attempt;
+    # leave for next session. Cross-theater channels via _build_channel_list
+    # already provide IntelSlava, PressTV, tasnimnews_en, AJEnglish substitute.
 
-    # ── Al Jazeera English (Qatar; covers US heavily) ──
-    'AJEnglish',             # Al Jazeera English [SPECULATIVE NEW]
-    'AlJazeera_News',        # Al Jazeera News [SPECULATIVE NEW]
-
-    # ── UK press (allied perspective on US) ──
-    'BBCBreaking',           # BBC Breaking News [CONFIRMED -- widely available]
-    'guardian',              # The Guardian [SPECULATIVE NEW]
-    'thetimesuk',            # The Times UK [SPECULATIVE NEW]
-    'telegraphnews',         # The Telegraph [SPECULATIVE NEW]
-    'reuters_breaking',      # Reuters Breaking [SPECULATIVE NEW]
-
-    # ── International wire / major outlets ──
-    'apnews_en',             # AP News [SPECULATIVE NEW]
-    'cnnnews',               # CNN News [SPECULATIVE NEW]
-    'bbcnews_en',            # BBC News English [SPECULATIVE NEW]
-    'NYTimes',               # NY Times (handle uncertain) [SPECULATIVE NEW]
-    'washingtonpost',        # Washington Post [SPECULATIVE NEW]
-    'bloombergnews',         # Bloomberg News [SPECULATIVE NEW]
-    'WSJnews',               # WSJ News [SPECULATIVE NEW]
-    'AxiosNews',             # Axios -- Barak Ravid published here [SPECULATIVE NEW]
-
-    # ── Adversarial coverage of US (already in CROSS_THEATER_GLOBAL but explicit list) ──
-    # IntelSlava, tasnimnews_en, PressTV, FarsNewsAgency, ManarNewsEN
-    # already added to all theatres via _build_channel_list()
-
-    # ── US incident / breaking news aggregators ──
-    'BreakingNewsLive',      # Breaking news aggregator [SPECULATIVE NEW]
-    'OSINTtechnical',        # OSINT technical -- US infrastructure / cyber [SPECULATIVE NEW]
-    'OSINTdefenderUSnews',   # OSINT Defender US-news (variant handle) [SPECULATIVE NEW]
-    'WarMonitorUS',          # War Monitor US-focus [SPECULATIVE NEW]
-
-    # ── US gun violence / mass casualty (specialist trackers) ──
-    'gunviolencearchive',    # Gun Violence Archive [SPECULATIVE NEW]
-
-    # ── US political analysis ──
-    'PunchbowlNews',         # Punchbowl News -- Hill insider [SPECULATIVE NEW]
-    'theatlanticnews',       # The Atlantic [SPECULATIVE NEW]
-    'newyorkermagazine',     # The New Yorker [SPECULATIVE NEW]
+    # ── DEFERRED to future scans (avoid flood-ban) ──
+    # Each of these is a strategically-valuable channel but ADDING TOO MANY
+    # AT ONCE TRIPS TELEGRAM FLOOD PROTECTION. Add 2-3 per week as the
+    # session accumulates resolved channels.
+    #
+    # Telegram session-cache strategy: once a channel is resolved successfully
+    # ONCE in a session, subsequent resolutions are FREE (cached locally).
+    # The flood-ban triggers ONLY on first-time bulk resolution.
+    #
+    # Round 1 (after May 11 deploy): add 'BBCBreaking', 'AJEnglish'
+    # Round 2 (after Round 1 stabilizes): add 'TimesofIsrael', 'haaretzcom'
+    # Round 3: add 'reuters_breaking', 'apnews_en', 'PunchbowlNews'
+    # Round 4: add UK 'guardian', 'thetimesuk'
+    # Round 5: add 'AxiosNews' (Barak Ravid's outlet — high US political value)
 ]
+
+# US-relevant content also flows through CROSS_THEATER_GLOBAL channels
+# (already in _build_channel_list output): IntelSlava, tasnimnews_en,
+# PressTV, FarsNewsAgency, ManarNewsEN, CentcomOfficial, OSINTdefender,
+# WarMonitors, ClashReport. These are ALREADY resolved from Cuba scans.
 
 
 # ========================================
