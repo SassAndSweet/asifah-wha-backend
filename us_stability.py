@@ -1360,12 +1360,18 @@ def run_stability_scan():
             telegram_raw = fetch_telegram_signals_us(hours_back=7 * 24)
             telegram_articles = []
             for p in telegram_raw:
+                # Defensive: source may be a dict like {'name': 'Telegram @channel'} — coerce to string
+                raw_src = p.get('source')
+                if isinstance(raw_src, dict):
+                    src_str = raw_src.get('name', '') or f"Telegram/{p.get('channel','unknown')}"
+                else:
+                    src_str = raw_src or f"Telegram/{p.get('channel','unknown')}"
                 telegram_articles.append({
                     'title':       p.get('title') or p.get('text') or '',
                     'description': p.get('text') or p.get('description') or '',
                     'link':        p.get('url') or p.get('link') or '',
                     'published':   p.get('publishedAt') or p.get('published') or p.get('date') or '',
-                    'source':      p.get('source') or f"Telegram/{p.get('channel','unknown')}",
+                    'source':      str(src_str),
                     'source_type': 'telegram',
                 })
             all_articles.extend(telegram_articles)
