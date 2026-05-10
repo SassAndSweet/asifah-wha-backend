@@ -274,6 +274,165 @@ BLUESKY_ACCOUNTS_WHA = [
         'WOLA -- Washington Office on Latin America, human rights focus [SPECULATIVE NEW]'),
     ('thedialogue.bsky.social',         0.85, ['*'],
         'Inter-American Dialogue -- regional policy think tank [SPECULATIVE NEW]'),
+
+    # ═══════════════════════════════════════════════════════════
+    # UNITED STATES (NEW May 2026) -- US-specific stability signals
+    # ═══════════════════════════════════════════════════════════
+    # Coverage strategy:
+    #   1. US executive / Trump Truth Social mirroring (highest priority)
+    #   2. US legislative leadership (House + Senate, both parties)
+    #   3. US national security agencies (CISA, FBI, DHS, NSA)
+    #   4. US journalists + analysts (mainstream + cross-spectrum balance)
+    #   5. US incident trackers (gun violence, weather, civil unrest)
+    #   6. Foreign view of US (UK, Israel, Al Jazeera, Reuters)
+    #
+    # PRINCIPLE: Trump's Truth Social posts are PRIMARY signal -- mirror weight
+    # is 1.3 (highest in module) because TS posts drive headline cycles + market
+    # moves + cross-theater rhetoric. Already covered by realdonaldtrump.govmirrors.com
+    # in US Government block above (firing for '*').
+    #
+    # PRINCIPLE: Balance partisan voices -- include both sides where possible.
+    # Asifah is apolitical infrastructure; we should capture rhetoric from
+    # left, right, and center to score stability honestly.
+
+    # ── US Executive expanded mirrors ──
+    # (realdonaldtrump.govmirrors.com already in US Government block above
+    #  with target ['cuba', 'venezuela', 'mexico', 'panama', 'haiti', 'colombia', '*']
+    #  — fires for US naturally via '*'. Weight 1.2 there.)
+    ('whitehouse.govmirrors.com',       1.1, ['us'],
+        'White House (X mirror) -- official statements, EOs, briefings [SPECULATIVE NEW May 2026]'),
+    ('vp.govmirrors.com',               1.1, ['us'],
+        'Vice President (X mirror) -- VP statements [SPECULATIVE NEW May 2026]'),
+    ('presssec.govmirrors.com',         1.0, ['us'],
+        'WH Press Secretary (X mirror) -- daily briefings [SPECULATIVE NEW May 2026]'),
+
+    # ── US Legislative Leadership ──
+    ('speakerjohnson.govmirrors.com',   1.05, ['us'],
+        'Speaker of the House (X mirror) [SPECULATIVE NEW May 2026]'),
+    ('leadermcconnell.govmirrors.com',  0.95, ['us'],
+        'Senate GOP leadership (X mirror) [SPECULATIVE NEW May 2026]'),
+    ('senschumer.govmirrors.com',       1.05, ['us'],
+        'Senate Dem Leader (X mirror) [SPECULATIVE NEW May 2026]'),
+    ('repjeffries.govmirrors.com',      1.05, ['us'],
+        'House Dem Leader (X mirror) [SPECULATIVE NEW May 2026]'),
+
+    # ── US National Security Agencies (cyber + infrastructure dimension) ──
+    ('cisagov.bsky.social',             1.0, ['us'],
+        'CISA (Cybersecurity & Infrastructure Security Agency) [UNVERIFIED NEW May 2026]'),
+    ('cisa.govmirrors.com',             1.0, ['us'],
+        'CISA (X mirror) -- backup [SPECULATIVE NEW May 2026]'),
+    ('fbi.govmirrors.com',              1.0, ['us'],
+        'FBI (X mirror) -- alerts, advisories [SPECULATIVE NEW May 2026]'),
+    ('dhsgov.govmirrors.com',           1.0, ['us'],
+        'DHS (X mirror) -- domestic security signals [SPECULATIVE NEW May 2026]'),
+    ('odni.govmirrors.com',             0.95, ['us'],
+        'ODNI -- intelligence community statements [SPECULATIVE NEW May 2026]'),
+    ('justicedept.govmirrors.com',      1.0, ['us'],
+        'DOJ (X mirror) -- prosecutions, civil rights [SPECULATIVE NEW May 2026]'),
+
+    # ── US Mainstream Journalists (cross-spectrum, native Bluesky preferred) ──
+    ('maggienyt.bsky.social',           1.0, ['us'],
+        'Maggie Haberman (NYT) -- Trump beat insider [UNVERIFIED NEW May 2026]'),
+    ('jonathanvswan.bsky.social',       1.0, ['us'],
+        'Jonathan Swan (NYT) -- WH/admin reporting [UNVERIFIED NEW May 2026]'),
+    ('mkraju.bsky.social',              1.0, ['us'],
+        'Manu Raju (CNN) -- Capitol Hill [UNVERIFIED NEW May 2026]'),
+    ('peterbakernyt.bsky.social',       0.95, ['us'],
+        'Peter Baker (NYT) -- WH chief correspondent [UNVERIFIED NEW May 2026]'),
+    ('bzfeldman.bsky.social',           0.95, ['us'],
+        'Brett Samuels / Hill reporters [SPECULATIVE NEW May 2026]'),
+    ('philiprucker.bsky.social',        0.95, ['us'],
+        'Philip Rucker (WaPo / NBC) [UNVERIFIED NEW May 2026]'),
+    ('costareports.bsky.social',        0.95, ['us'],
+        'Robert Costa (CBS News) -- WH/Congress [UNVERIFIED NEW May 2026]'),
+    ('annapalmerdc.bsky.social',        0.9, ['us'],
+        'Anna Palmer (Punchbowl News) [UNVERIFIED NEW May 2026]'),
+
+    # ── US Conservative / Right-of-Center Voices (balance) ──
+    ('byronyork.bsky.social',           0.9, ['us'],
+        'Byron York (Washington Examiner) [SPECULATIVE NEW May 2026]'),
+    ('charlescwcooke.bsky.social',      0.85, ['us'],
+        'Charles C.W. Cooke (National Review) [SPECULATIVE NEW May 2026]'),
+    ('hughhewitt.bsky.social',          0.85, ['us'],
+        'Hugh Hewitt -- conservative talk [SPECULATIVE NEW May 2026]'),
+
+    # ── US Progressive / Left-of-Center Voices (balance) ──
+    ('judddlegum.bsky.social',          0.95, ['us'],
+        'Judd Legum (Popular Information) -- accountability journalism [UNVERIFIED NEW May 2026]'),
+    ('marcelias.bsky.social',           0.9, ['us'],
+        'Marc Elias -- voting rights litigator [UNVERIFIED NEW May 2026]'),
+    ('rickwilson.bsky.social',          0.85, ['us'],
+        'Rick Wilson -- Lincoln Project [SPECULATIVE NEW May 2026]'),
+
+    # ── US Incident Trackers (mass casualty, civil unrest, weather emergency) ──
+    ('gunviolencearchive.bsky.social',  1.05, ['us'],
+        'Gun Violence Archive -- mass casualty event source [SPECULATIVE NEW May 2026]'),
+    ('nwsweather.bsky.social',          1.0, ['us'],
+        'National Weather Service (X mirror or native) [SPECULATIVE NEW May 2026]'),
+    ('nws.govmirrors.com',              1.0, ['us'],
+        'NWS (X mirror) -- severe weather [SPECULATIVE NEW May 2026]'),
+    ('femagov.bsky.social',             1.0, ['us'],
+        'FEMA -- federal disaster declarations [SPECULATIVE NEW May 2026]'),
+    ('nhc.govmirrors.com',              1.0, ['us'],
+        'National Hurricane Center (X mirror) [SPECULATIVE NEW May 2026]'),
+
+    # ── US Court / Legal Signal ──
+    ('supremecourtus.govmirrors.com',   1.0, ['us'],
+        'SCOTUS (X mirror) -- case decisions [SPECULATIVE NEW May 2026]'),
+    ('lawfareblog.bsky.social',         0.9, ['us'],
+        'Lawfare -- national security law analysis [UNVERIFIED NEW May 2026]'),
+
+    # ── US Economic Signal (FRED, CBO, macro analysts) ──
+    ('stlouisfed.bsky.social',          0.9, ['us'],
+        'St. Louis Fed (FRED) -- economic data [SPECULATIVE NEW May 2026]'),
+    ('cbo.govmirrors.com',              0.9, ['us'],
+        'Congressional Budget Office (X mirror) [SPECULATIVE NEW May 2026]'),
+
+    # ═══════════════════════════════════════════════════════════
+    # FOREIGN VIEW OF US (NEW May 2026) -- allied + adversarial perspectives
+    # ═══════════════════════════════════════════════════════════
+    # Allies analyzing US conditions: UK, Israel, Canada, AU/NZ press
+    # Adversarial: PressTV, Tasnim already in cross-theater Telegram (different module)
+    # Goal: capture how the world reads US stability — often catches signals
+    # US domestic press is too close to see clearly.
+
+    # ── UK press (FCDO advisories already on stability page; supplement with reporting) ──
+    ('bbcworld.bsky.social',            0.95, ['us', '*'],
+        'BBC World -- UK view of US [SPECULATIVE NEW May 2026]'),
+    ('thetimes.bsky.social',            0.85, ['us', '*'],
+        'The Times (UK) -- US coverage [SPECULATIVE NEW May 2026]'),
+    ('guardian.bsky.social',            0.9, ['us', '*'],
+        'The Guardian -- US-critical UK left perspective [SPECULATIVE NEW May 2026]'),
+    ('telegraph.bsky.social',           0.85, ['us', '*'],
+        'The Telegraph -- UK conservative US coverage [SPECULATIVE NEW May 2026]'),
+
+    # ── Israeli press (heavy US political coverage, often catches signals first) ──
+    ('timesofisrael.bsky.social',       0.95, ['us', '*'],
+        'Times of Israel -- US politics, Israel-US relations [SPECULATIVE NEW May 2026]'),
+    ('jerusalempost.bsky.social',       0.9, ['us', '*'],
+        'Jerusalem Post -- right-leaning Israeli US coverage [SPECULATIVE NEW May 2026]'),
+    ('haaretzcom.bsky.social',          0.9, ['us', '*'],
+        'Haaretz -- left-leaning Israeli US coverage [SPECULATIVE NEW May 2026]'),
+    ('axios.bsky.social',               0.95, ['us', '*'],
+        'Axios -- Barak Ravid lives here, reports US policy heavily [UNVERIFIED NEW May 2026]'),
+
+    # ── Al Jazeera English (Qatar; covers US heavily) ──
+    ('aljazeeraenglish.bsky.social',    0.9, ['us', '*'],
+        'Al Jazeera English -- US coverage from outside [SPECULATIVE NEW May 2026]'),
+
+    # ── Other foreign press with strong US coverage ──
+    ('reuters.bsky.social',             0.95, ['us', '*'],
+        'Reuters -- global wire service [SPECULATIVE NEW May 2026]'),
+    ('apnews.bsky.social',              0.95, ['us', '*'],
+        'AP News -- global wire service [SPECULATIVE NEW May 2026]'),
+    ('bloomberg.bsky.social',           0.9, ['us', '*'],
+        'Bloomberg -- markets + US politics [SPECULATIVE NEW May 2026]'),
+    ('ftusa.bsky.social',               0.9, ['us', '*'],
+        'FT US -- UK-edited US coverage [SPECULATIVE NEW May 2026]'),
+    ('cbcnews.bsky.social',             0.85, ['us', '*'],
+        'CBC News (Canada) -- adjacent allied view [SPECULATIVE NEW May 2026]'),
+    ('abcaustralia.bsky.social',        0.85, ['us', '*'],
+        'ABC Australia -- Five Eyes ally [SPECULATIVE NEW May 2026]'),
 ]
 
 
