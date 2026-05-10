@@ -527,14 +527,14 @@ US_RHETORIC_RSS = [
     ('NYT US',           'https://rss.nytimes.com/services/xml/rss/nyt/US.xml',         'eng', 1.0),
     ('NPR National',     'https://feeds.npr.org/1003/rss.xml',                          'eng', 1.0),
     ('The Hill',         'https://thehill.com/news/feed/',                              'eng', 0.95),
-    ('Politico',         'https://www.politico.com/rss/politicopicks.xml',              'eng', 0.95),
+    ('Politico (via Google News)', 'https://news.google.com/rss/search?q=site%3Apolitico.com&hl=en-US&gl=US&ceid=US:en', 'eng', 0.9),
     ('Axios',            'https://api.axios.com/feed/',                                  'eng', 0.95),
     ('CNN Politics',     'http://rss.cnn.com/rss/cnn_allpolitics.rss',                  'eng', 0.9),
     ('PBS NewsHour',     'https://www.pbs.org/newshour/feeds/rss/headlines',            'eng', 0.95),
     ('ProPublica',       'https://www.propublica.org/feeds/propublica/main',            'eng', 0.95),
     ('WaPo Politics',    'https://feeds.washingtonpost.com/rss/politics',               'eng', 1.0),
     ('Atlantic Politics','https://www.theatlantic.com/feed/channel/politics/',          'eng', 0.9),
-    ('AP US',            'https://feeds.apnews.com/apf-usnews',                          'eng', 1.0),
+    ('AP US (via Google News)', 'https://news.google.com/rss/search?q=site%3Aapnews.com+politics&hl=en-US&gl=US&ceid=US:en', 'eng', 1.0),
 
     # ── Cross-spectrum balance ──
     ('Washington Examiner', 'https://www.washingtonexaminer.com/news/feed',             'eng', 0.85),
@@ -542,12 +542,12 @@ US_RHETORIC_RSS = [
     ('Reason',           'https://reason.com/feed/',                                    'eng', 0.8),
 
     # ── Legal / institutional ──
-    ('Just Security',    'https://www.justsecurity.org/feed/',                          'eng', 0.95),
-    ('Lawfare',          'https://www.lawfaremedia.org/feed.xml',                       'eng', 0.95),
+    ('Just Security (via Google News)', 'https://news.google.com/rss/search?q=site%3Ajustsecurity.org&hl=en-US&gl=US&ceid=US:en', 'eng', 0.95),
+    ('Lawfare (via Google News)', 'https://news.google.com/rss/search?q=site%3Alawfaremedia.org&hl=en-US&gl=US&ceid=US:en', 'eng', 0.95),
     ('SCOTUSblog',       'https://www.scotusblog.com/feed/',                             'eng', 1.0),
 
     # ── DHS / immigration enforcement specialist ──
-    ('CBP News',         'https://www.cbp.gov/rss/news/rss.xml',                        'eng', 1.0),
+    ('DHS/ICE (via Google News)', 'https://news.google.com/rss/search?q=ICE+raid+OR+deportation+OR+%22immigration+enforcement%22&hl=en-US&gl=US&ceid=US:en', 'eng', 1.05),
 
     # ── Cyber / infrastructure (cross-cutting) ──
     ('CISA Alerts',      'https://www.cisa.gov/news.xml',                                'eng', 0.95),
@@ -557,7 +557,7 @@ US_RHETORIC_RSS = [
     ('Guardian US',      'https://www.theguardian.com/us-news/rss',                     'eng', 0.95),
 
     # ── Spanish-language US-focused ──
-    ('Univision Politica', 'https://www.univision.com/feed/rss/news.xml',               'spa', 0.85),
+    ('Spanish-language US Politics (via Google News)', 'https://news.google.com/rss/search?q=Estados+Unidos+pol%C3%ADtica+OR+Trump+OR+Casa+Blanca&hl=es-419&gl=US&ceid=US:es-419', 'spa', 0.85),
 ]
 
 
@@ -905,8 +905,10 @@ def _fetch_all_articles():
     print(f"[US Rhetoric] GDELT: {gdelt_count} articles")
 
     # ── NewsAPI fallback (if GDELT thin) ──
+    newsapi_count = 0
     if gdelt_count < 30 and NEWSAPI_AVAILABLE:
         print(f"[US Rhetoric] GDELT thin ({gdelt_count}) -- triggering NewsAPI fallback")
+        pre_newsapi = len(all_articles)
         for q in [
             '"trump statement" OR "white house"',
             '"ice raids" OR "mass deportation"',
@@ -915,14 +917,30 @@ def _fetch_all_articles():
         ]:
             articles = _fetch_newsapi(q, max_records=10)
             all_articles.extend(articles)
+        newsapi_count = len(all_articles) - pre_newsapi
+        print(f"[US Rhetoric] NewsAPI fallback: {newsapi_count} articles")
 
-    # ── Brave fallback (if everything thin) ──
-    pre_brave = len(all_articles)
-    if pre_brave < 60 and BRAVE_AVAILABLE:
-        print(f"[US Rhetoric] All thin ({pre_brave}) -- triggering Brave fallback")
-        for q in ['trump white house statement', 'ice raids deportation', 'supreme court ruling']:
+    # ── Brave fallback (NEW LOGIC May 2026): fires when GDELT + NewsAPI combined
+    # is thin, independent of RSS/social health. Different source types serve
+    # different analytical purposes — keyword-driven news-index discovery should
+    # be backstopped even if curated RSS + social are healthy. Brave free tier
+    # is 2000/month so we can spend the requests freely.
+    news_index_total = gdelt_count + newsapi_count
+    if news_index_total < 60 and BRAVE_AVAILABLE:
+        print(f"[US Rhetoric] News-index thin (GDELT={gdelt_count} + NewsAPI={newsapi_count} = {news_index_total}) -- triggering Brave fallback")
+        pre_brave = len(all_articles)
+        for q in [
+            'trump white house statement',
+            'ice raids deportation',
+            'supreme court ruling united states',
+            'congress democrats republicans',
+            'federal reserve powell',
+            'state governor lawsuit federal',
+        ]:
             articles = _fetch_brave(q, max_records=10)
             all_articles.extend(articles)
+        brave_count = len(all_articles) - pre_brave
+        print(f"[US Rhetoric] Brave fallback: {brave_count} articles")
 
     # ── Bluesky ──
     if BLUESKY_AVAILABLE:
