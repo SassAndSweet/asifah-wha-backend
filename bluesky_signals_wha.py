@@ -276,163 +276,154 @@ BLUESKY_ACCOUNTS_WHA = [
         'Inter-American Dialogue -- regional policy think tank [SPECULATIVE NEW]'),
 
     # ═══════════════════════════════════════════════════════════
-    # UNITED STATES (NEW May 2026) -- US-specific stability signals
+    # UNITED STATES (v1.2.0 May 10 2026 — POST-AUDIT SCRUB)
     # ═══════════════════════════════════════════════════════════
-    # Coverage strategy:
-    #   1. US executive / Trump Truth Social mirroring (highest priority)
-    #   2. US legislative leadership (House + Senate, both parties)
-    #   3. US national security agencies (CISA, FBI, DHS, NSA)
-    #   4. US journalists + analysts (mainstream + cross-spectrum balance)
-    #   5. US incident trackers (gun violence, weather, civil unrest)
-    #   6. Foreign view of US (UK, Israel, Al Jazeera, Reuters)
+    # SCRUB METHODOLOGY (May 10 2026):
+    #   First production deploy logged 67 accounts queried for 'us' target,
+    #   only 17 returned posts. ~50% returned HTTP 400 ("handle not found").
     #
-    # PRINCIPLE: Trump's Truth Social posts are PRIMARY signal -- mirror weight
-    # is 1.3 (highest in module) because TS posts drive headline cycles + market
-    # moves + cross-theater rhetoric. Already covered by realdonaldtrump.govmirrors.com
-    # in US Government block above (firing for '*').
+    # KEY FINDING: Major media + agencies use their OWN DOMAIN as Bluesky
+    # handle (verified domain ownership via DNS), NOT bsky.social subdomain.
+    # Examples confirmed from research:
+    #   reuters.com (NOT reuters.bsky.social)
+    #   nws.noaa.gov + noaa.gov + climate.noaa.gov + skywarn.bsky.social
+    #   homelandgov.bsky.social (DHS official; hsigov.bsky.social = HSI)
+    #   maggiehaberman.bsky.social (NOT maggienyt)
+    #   juddlegum.bsky.social (NOT judddlegum — typo, 3 d's)
+    #   lawfaremedia.org (NOT lawfareblog.bsky.social)
     #
-    # PRINCIPLE: Balance partisan voices -- include both sides where possible.
-    # Asifah is apolitical infrastructure; we should capture rhetoric from
-    # left, right, and center to score stability honestly.
+    # KEPT: handles confirmed firing in production (with post counts as of
+    # May 10 2026 first deploy):
+    #   • realdonaldtrump.govmirrors.com (20)  ← Trump Truth Social PRIMARY
+    #   • state-department.bsky.social (5)
+    #   • statedept.govmirrors.com (20)
+    #   • dhsgov.govmirrors.com (20)
+    #   • wartranslated.bsky.social (20)
+    #   • thetimes.bsky.social (20)
+    #   • haaretzcom.bsky.social (20)
+    #   • mkraju.bsky.social (20) — Manu Raju CNN
+    #   • peterbakernyt.bsky.social (20)
+    #   • marcelias.bsky.social (20)
+    #   • stlouisfed.bsky.social (20)
+    #   • byronyork.bsky.social (5)
+    #   • hughhewitt.bsky.social (7)
+    #   • rickwilson.bsky.social (4)
+    #   • charlescwcooke.bsky.social (1)
+    #   • bloomberg.bsky.social (1)
+    #   • ftusa.bsky.social (3)
 
-    # ── US Executive expanded mirrors ──
-    # (realdonaldtrump.govmirrors.com already in US Government block above
-    #  with target ['cuba', 'venezuela', 'mexico', 'panama', 'haiti', 'colombia', '*']
-    #  — fires for US naturally via '*'. Weight 1.2 there.)
-    ('whitehouse.govmirrors.com',       1.1, ['us'],
-        'White House (X mirror) -- official statements, EOs, briefings [SPECULATIVE NEW May 2026]'),
-    ('vp.govmirrors.com',               1.1, ['us'],
-        'Vice President (X mirror) -- VP statements [SPECULATIVE NEW May 2026]'),
-    ('presssec.govmirrors.com',         1.0, ['us'],
-        'WH Press Secretary (X mirror) -- daily briefings [SPECULATIVE NEW May 2026]'),
+    # ── US Executive ──
+    # Trump Truth Social mirror already in US Government block above
+    # (target list includes '*' so fires for 'us' naturally).
+    # Other executive mirrors (potus, vp, secdef, secrubio, treasury, presssec,
+    # whitehouse) all returned 400 in audit -- REMOVED.
 
     # ── US Legislative Leadership ──
-    ('speakerjohnson.govmirrors.com',   1.05, ['us'],
-        'Speaker of the House (X mirror) [SPECULATIVE NEW May 2026]'),
-    ('leadermcconnell.govmirrors.com',  0.95, ['us'],
-        'Senate GOP leadership (X mirror) [SPECULATIVE NEW May 2026]'),
-    ('senschumer.govmirrors.com',       1.05, ['us'],
-        'Senate Dem Leader (X mirror) [SPECULATIVE NEW May 2026]'),
-    ('repjeffries.govmirrors.com',      1.05, ['us'],
-        'House Dem Leader (X mirror) [SPECULATIVE NEW May 2026]'),
+    # All four (speakerjohnson, leadermcconnell, senschumer, repjeffries
+    # govmirrors) returned 400 in audit -- REMOVED. No verified replacements
+    # found. Will revisit when Bluesky verification expands to Hill mirrors.
 
-    # ── US National Security Agencies (cyber + infrastructure dimension) ──
-    ('cisagov.bsky.social',             1.0, ['us'],
-        'CISA (Cybersecurity & Infrastructure Security Agency) [UNVERIFIED NEW May 2026]'),
-    ('cisa.govmirrors.com',             1.0, ['us'],
-        'CISA (X mirror) -- backup [SPECULATIVE NEW May 2026]'),
-    ('fbi.govmirrors.com',              1.0, ['us'],
-        'FBI (X mirror) -- alerts, advisories [SPECULATIVE NEW May 2026]'),
-    ('dhsgov.govmirrors.com',           1.0, ['us'],
-        'DHS (X mirror) -- domestic security signals [SPECULATIVE NEW May 2026]'),
-    ('odni.govmirrors.com',             0.95, ['us'],
-        'ODNI -- intelligence community statements [SPECULATIVE NEW May 2026]'),
-    ('justicedept.govmirrors.com',      1.0, ['us'],
-        'DOJ (X mirror) -- prosecutions, civil rights [SPECULATIVE NEW May 2026]'),
+    # ── US National Security Agencies ──
+    # cisa.govmirrors, fbi.govmirrors, odni.govmirrors, justicedept.govmirrors,
+    # cisagov.bsky.social ALL returned 400 -- REMOVED.
+    # dhsgov.govmirrors.com IS WORKING (kept above in govmirrors block).
+    ('homelandgov.bsky.social',         1.0, ['us'],
+        'DHS official Bluesky [VERIFIED via dhs.gov/bluesky-privacy-policy]'),
+    ('hsigov.bsky.social',              0.95, ['us'],
+        'Homeland Security Investigations (DHS) [VERIFIED]'),
 
-    # ── US Mainstream Journalists (cross-spectrum, native Bluesky preferred) ──
-    ('maggienyt.bsky.social',           1.0, ['us'],
-        'Maggie Haberman (NYT) -- Trump beat insider [UNVERIFIED NEW May 2026]'),
-    ('jonathanvswan.bsky.social',       1.0, ['us'],
-        'Jonathan Swan (NYT) -- WH/admin reporting [UNVERIFIED NEW May 2026]'),
+    # ── US Mainstream Journalists (verified handles) ──
+    ('maggiehaberman.bsky.social',      1.0, ['us'],
+        'Maggie Haberman (NYT) [VERIFIED -- replaces maggienyt 400]'),
     ('mkraju.bsky.social',              1.0, ['us'],
-        'Manu Raju (CNN) -- Capitol Hill [UNVERIFIED NEW May 2026]'),
+        'Manu Raju (CNN) Capitol Hill [CONFIRMED firing 20 posts]'),
     ('peterbakernyt.bsky.social',       0.95, ['us'],
-        'Peter Baker (NYT) -- WH chief correspondent [UNVERIFIED NEW May 2026]'),
-    ('bzfeldman.bsky.social',           0.95, ['us'],
-        'Brett Samuels / Hill reporters [SPECULATIVE NEW May 2026]'),
-    ('philiprucker.bsky.social',        0.95, ['us'],
-        'Philip Rucker (WaPo / NBC) [UNVERIFIED NEW May 2026]'),
-    ('costareports.bsky.social',        0.95, ['us'],
-        'Robert Costa (CBS News) -- WH/Congress [UNVERIFIED NEW May 2026]'),
-    ('annapalmerdc.bsky.social',        0.9, ['us'],
-        'Anna Palmer (Punchbowl News) [UNVERIFIED NEW May 2026]'),
+        'Peter Baker (NYT) WH chief [CONFIRMED firing 20 posts]'),
+    # jonathanvswan.bsky.social, bzfeldman.bsky.social, philiprucker.bsky.social,
+    # costareports.bsky.social, annapalmerdc.bsky.social ALL 400 -- REMOVED.
+    # Swan is now at NYT (per Apr 2026 Axios reporting); his handle may exist
+    # under a domain. To investigate next session.
 
-    # ── US Conservative / Right-of-Center Voices (balance) ──
+    # ── US Conservative / Right Voices ──
     ('byronyork.bsky.social',           0.9, ['us'],
-        'Byron York (Washington Examiner) [SPECULATIVE NEW May 2026]'),
+        'Byron York (Washington Examiner) [CONFIRMED firing 5 posts]'),
     ('charlescwcooke.bsky.social',      0.85, ['us'],
-        'Charles C.W. Cooke (National Review) [SPECULATIVE NEW May 2026]'),
+        'Charles C.W. Cooke (National Review) [CONFIRMED firing 1 post]'),
     ('hughhewitt.bsky.social',          0.85, ['us'],
-        'Hugh Hewitt -- conservative talk [SPECULATIVE NEW May 2026]'),
+        'Hugh Hewitt -- conservative talk [CONFIRMED firing 7 posts]'),
 
-    # ── US Progressive / Left-of-Center Voices (balance) ──
-    ('judddlegum.bsky.social',          0.95, ['us'],
-        'Judd Legum (Popular Information) -- accountability journalism [UNVERIFIED NEW May 2026]'),
+    # ── US Progressive / Left Voices ──
+    ('juddlegum.bsky.social',           0.95, ['us'],
+        'Judd Legum (Popular Information) [VERIFIED -- replaces judddlegum typo]'),
     ('marcelias.bsky.social',           0.9, ['us'],
-        'Marc Elias -- voting rights litigator [UNVERIFIED NEW May 2026]'),
+        'Marc Elias -- voting rights [CONFIRMED firing 20 posts]'),
     ('rickwilson.bsky.social',          0.85, ['us'],
-        'Rick Wilson -- Lincoln Project [SPECULATIVE NEW May 2026]'),
+        'Rick Wilson -- Lincoln Project [CONFIRMED firing 4 posts]'),
 
-    # ── US Incident Trackers (mass casualty, civil unrest, weather emergency) ──
-    ('gunviolencearchive.bsky.social',  1.05, ['us'],
-        'Gun Violence Archive -- mass casualty event source [SPECULATIVE NEW May 2026]'),
-    ('nwsweather.bsky.social',          1.0, ['us'],
-        'National Weather Service (X mirror or native) [SPECULATIVE NEW May 2026]'),
-    ('nws.govmirrors.com',              1.0, ['us'],
-        'NWS (X mirror) -- severe weather [SPECULATIVE NEW May 2026]'),
-    ('femagov.bsky.social',             1.0, ['us'],
-        'FEMA -- federal disaster declarations [SPECULATIVE NEW May 2026]'),
-    ('nhc.govmirrors.com',              1.0, ['us'],
-        'National Hurricane Center (X mirror) [SPECULATIVE NEW May 2026]'),
+    # ── US Incident Trackers (verified weather/emergency handles) ──
+    # gunviolencearchive.bsky.social, nwsweather.bsky.social, nws.govmirrors.com,
+    # femagov.bsky.social, nhc.govmirrors.com ALL 400 -- REMOVED.
+    ('nws.noaa.gov',                    1.0, ['us'],
+        'National Weather Service official [VERIFIED via nws.noaa.gov DNS]'),
+    ('noaa.gov',                        0.95, ['us'],
+        'NOAA parent agency [VERIFIED]'),
+    ('climate.noaa.gov',                0.9, ['us'],
+        'NOAA Climate.gov [VERIFIED]'),
+    ('skywarn.bsky.social',             0.85, ['us'],
+        'NOAA/NWS Skywarn Spotter Program [VERIFIED]'),
+    ('noaacomms.noaa.gov',              0.85, ['us'],
+        'NOAA Communications [VERIFIED]'),
 
     # ── US Court / Legal Signal ──
-    ('supremecourtus.govmirrors.com',   1.0, ['us'],
-        'SCOTUS (X mirror) -- case decisions [SPECULATIVE NEW May 2026]'),
-    ('lawfareblog.bsky.social',         0.9, ['us'],
-        'Lawfare -- national security law analysis [UNVERIFIED NEW May 2026]'),
+    # supremecourtus.govmirrors.com, lawfareblog.bsky.social BOTH 400 -- REMOVED.
+    ('lawfaremedia.org',                0.95, ['us'],
+        'Lawfare -- national security law analysis [VERIFIED -- replaces lawfareblog]'),
 
-    # ── US Economic Signal (FRED, CBO, macro analysts) ──
+    # ── US Economic Signal ──
+    # cbo.govmirrors.com 400 -- REMOVED.
+    # stlouisfed.bsky.social CONFIRMED firing 20 posts (kept).
     ('stlouisfed.bsky.social',          0.9, ['us'],
-        'St. Louis Fed (FRED) -- economic data [SPECULATIVE NEW May 2026]'),
-    ('cbo.govmirrors.com',              0.9, ['us'],
-        'Congressional Budget Office (X mirror) [SPECULATIVE NEW May 2026]'),
+        'St. Louis Fed (FRED) [CONFIRMED firing 20 posts]'),
 
     # ═══════════════════════════════════════════════════════════
-    # FOREIGN VIEW OF US (NEW May 2026) -- allied + adversarial perspectives
+    # FOREIGN VIEW OF US (v1.2.0 — POST-AUDIT SCRUB)
     # ═══════════════════════════════════════════════════════════
-    # Allies analyzing US conditions: UK, Israel, Canada, AU/NZ press
-    # Adversarial: PressTV, Tasnim already in cross-theater Telegram (different module)
-    # Goal: capture how the world reads US stability — often catches signals
-    # US domestic press is too close to see clearly.
+    # bbcworld.bsky.social, guardian.bsky.social, jerusalempost.bsky.social,
+    # reuters.bsky.social ALL returned 400 -- REMOVED.
+    # thetimes.bsky.social, haaretzcom.bsky.social, bloomberg.bsky.social,
+    # ftusa.bsky.social CONFIRMED firing.
 
-    # ── UK press (FCDO advisories already on stability page; supplement with reporting) ──
-    ('bbcworld.bsky.social',            0.95, ['us', '*'],
-        'BBC World -- UK view of US [SPECULATIVE NEW May 2026]'),
+    # ── UK press ──
     ('thetimes.bsky.social',            0.85, ['us', '*'],
-        'The Times (UK) -- US coverage [SPECULATIVE NEW May 2026]'),
-    ('guardian.bsky.social',            0.9, ['us', '*'],
-        'The Guardian -- US-critical UK left perspective [SPECULATIVE NEW May 2026]'),
-    ('telegraph.bsky.social',           0.85, ['us', '*'],
-        'The Telegraph -- UK conservative US coverage [SPECULATIVE NEW May 2026]'),
+        'The Times (UK) US coverage [CONFIRMED firing 20 posts]'),
+    # bbcworld.bsky.social, guardian.bsky.social, telegraph.bsky.social all 400.
+    # BBC News uses bot mirror @bbcnews-world-rss.bsky.social — quality unknown.
 
-    # ── Israeli press (heavy US political coverage, often catches signals first) ──
-    ('timesofisrael.bsky.social',       0.95, ['us', '*'],
-        'Times of Israel -- US politics, Israel-US relations [SPECULATIVE NEW May 2026]'),
-    ('jerusalempost.bsky.social',       0.9, ['us', '*'],
-        'Jerusalem Post -- right-leaning Israeli US coverage [SPECULATIVE NEW May 2026]'),
+    # ── Israeli press ──
     ('haaretzcom.bsky.social',          0.9, ['us', '*'],
-        'Haaretz -- left-leaning Israeli US coverage [SPECULATIVE NEW May 2026]'),
-    ('axios.bsky.social',               0.95, ['us', '*'],
-        'Axios -- Barak Ravid lives here, reports US policy heavily [UNVERIFIED NEW May 2026]'),
+        'Haaretz English [CONFIRMED firing 20 posts]'),
+    # timesofisrael.bsky.social, jerusalempost.bsky.social all 400.
+    # Israeli outlets primarily on X/Twitter; verified Bluesky presence sparse.
 
-    # ── Al Jazeera English (Qatar; covers US heavily) ──
-    ('aljazeeraenglish.bsky.social',    0.9, ['us', '*'],
-        'Al Jazeera English -- US coverage from outside [SPECULATIVE NEW May 2026]'),
-
-    # ── Other foreign press with strong US coverage ──
-    ('reuters.bsky.social',             0.95, ['us', '*'],
-        'Reuters -- global wire service [SPECULATIVE NEW May 2026]'),
-    ('apnews.bsky.social',              0.95, ['us', '*'],
-        'AP News -- global wire service [SPECULATIVE NEW May 2026]'),
+    # ── Wire / major outlets via custom domain handles ──
+    ('reuters.com',                     0.95, ['us', '*'],
+        'Reuters official [VERIFIED -- custom domain handle replaces reuters.bsky.social]'),
+    ('legal.reuters.com',               0.85, ['us', '*'],
+        'Reuters Legal [VERIFIED]'),
     ('bloomberg.bsky.social',           0.9, ['us', '*'],
-        'Bloomberg -- markets + US politics [SPECULATIVE NEW May 2026]'),
+        'Bloomberg [CONFIRMED firing 1 post]'),
     ('ftusa.bsky.social',               0.9, ['us', '*'],
-        'FT US -- UK-edited US coverage [SPECULATIVE NEW May 2026]'),
-    ('cbcnews.bsky.social',             0.85, ['us', '*'],
-        'CBC News (Canada) -- adjacent allied view [SPECULATIVE NEW May 2026]'),
-    ('abcaustralia.bsky.social',        0.85, ['us', '*'],
-        'ABC Australia -- Five Eyes ally [SPECULATIVE NEW May 2026]'),
+        'FT US [CONFIRMED firing 3 posts]'),
+    # apnews.bsky.social, axios.bsky.social, aljazeeraenglish.bsky.social,
+    # cbcnews.bsky.social, abcaustralia.bsky.social all 400 in audit. To research.
+
+    # ── ADDITIONAL VERIFIED HANDLES (NEW v1.2.0) ──
+    # Reuters reporters (US-focused) verified via Reuters business starter pack
+    ('michaelsderby.bsky.social',       0.85, ['us'],
+        'Michael Derby (Reuters Fed/economy) [VERIFIED]'),
+    ('hpschneider.bsky.social',         0.8, ['us'],
+        'Howard Schneider (Reuters US economy) [VERIFIED]'),
+
 ]
 
 
