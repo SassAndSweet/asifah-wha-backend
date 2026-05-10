@@ -78,14 +78,29 @@ RSS_TIMEOUT_SEC        = 12
 NEWSAPI_TIMEOUT_SEC    = 10
 DEFAULT_MAX_ARTICLES   = 25
 
-UPSTASH_URL   = os.environ.get('UPSTASH_REDIS_REST_URL', '')
-UPSTASH_TOKEN = os.environ.get('UPSTASH_REDIS_REST_TOKEN', '')
+# Defensive: support both env var naming conventions used across Asifah trackers.
+# Peru/Chile use UPSTASH_REDIS_URL; some docs reference UPSTASH_REDIS_REST_URL.
+# Try both so the tracker works regardless of which one is configured on Render.
+UPSTASH_URL   = os.environ.get('UPSTASH_REDIS_URL', '') or os.environ.get('UPSTASH_REDIS_REST_URL', '')
+UPSTASH_TOKEN = os.environ.get('UPSTASH_REDIS_TOKEN', '') or os.environ.get('UPSTASH_REDIS_REST_TOKEN', '')
 NEWSAPI_KEY   = os.environ.get('NEWSAPI_KEY', '')
 BRAVE_API_KEY = os.environ.get('BRAVE_API_KEY', '')
 
 REDIS_AVAILABLE  = bool(UPSTASH_URL and UPSTASH_TOKEN)
 NEWSAPI_AVAILABLE = bool(NEWSAPI_KEY)
 BRAVE_AVAILABLE  = bool(BRAVE_API_KEY)
+
+# Diagnostic logging — show which env vars resolved at module load
+print(f"[US Rhetoric] Redis available: {REDIS_AVAILABLE} (URL len={len(UPSTASH_URL)}, TOKEN len={len(UPSTASH_TOKEN)})")
+print(f"[US Rhetoric] NewsAPI available: {NEWSAPI_AVAILABLE} (key len={len(NEWSAPI_KEY)})")
+print(f"[US Rhetoric] Brave available: {BRAVE_AVAILABLE} (key len={len(BRAVE_API_KEY)})")
+
+# Show first 30 chars of URL so we can verify we got the right one (without
+# leaking the token). This helps catch env var typos.
+if UPSTASH_URL:
+    print(f"[US Rhetoric] Redis URL prefix: {UPSTASH_URL[:30]}...")
+if NEWSAPI_KEY:
+    print(f"[US Rhetoric] NewsAPI key prefix: {NEWSAPI_KEY[:8]}... (suffix: ...{NEWSAPI_KEY[-4:]})")
 
 # ── Social signal modules (graceful degradation) ──
 try:
@@ -625,13 +640,18 @@ def _get_tier(score):
 # ════════════════════════════════════════════════════════════════════
 
 def _redis_get(key):
-    """Fetch a key from Upstash Redis. Returns parsed JSON or None."""
+    """Fetch a key from Upstash Redis. Returns parsed JSON or None.
+
+    Now LOUD on infrastructure failure (May 2026): we don't log
+    every key-not-found (too noisy) but DO log auth/network errors.
+    """
     if not REDIS_AVAILABLE:
         return None
     try:
         url = f"{UPSTASH_URL}/get/{urllib.parse.quote(key, safe='')}"
         resp = requests.get(url, headers={'Authorization': f'Bearer {UPSTASH_TOKEN}'}, timeout=8)
         if resp.status_code != 200:
+            print(f"[US Rhetoric] ⚠️ Redis GET HTTP {resp.status_code} for {key}: {resp.text[:200]}")
             return None
         result = resp.json().get('result')
         if result is None:
@@ -641,13 +661,18 @@ def _redis_get(key):
         except (json.JSONDecodeError, TypeError):
             return result
     except Exception as e:
-        print(f"[US Rhetoric] Redis GET error for {key}: {str(e)[:120]}")
+        print(f"[US Rhetoric] ❌ Redis GET exception for {key}: {type(e).__name__}: {str(e)[:200]}")
         return None
 
 
 def _redis_set(key, value, ttl=None):
-    """Set a key in Upstash Redis. Returns True on success."""
+    """Set a key in Upstash Redis. Returns True on success.
+
+    Now LOUD on failure (May 2026): logs every failure type so we can
+    distinguish env var issues, network issues, auth issues, etc.
+    """
     if not REDIS_AVAILABLE:
+        print(f"[US Rhetoric] ❌ Redis SET SKIPPED for {key} -- REDIS_AVAILABLE is False (URL len={len(UPSTASH_URL)}, TOKEN len={len(UPSTASH_TOKEN)})")
         return False
     try:
         if isinstance(value, (dict, list)):
@@ -661,9 +686,14 @@ def _redis_set(key, value, ttl=None):
             params=params,
             timeout=8,
         )
-        return resp.status_code == 200
+        if resp.status_code == 200:
+            print(f"[US Rhetoric] ✅ Redis SET ok for {key} ({len(str(value))} bytes)")
+            return True
+        else:
+            print(f"[US Rhetoric] ❌ Redis SET failed for {key} -- HTTP {resp.status_code}: {resp.text[:200]}")
+            return False
     except Exception as e:
-        print(f"[US Rhetoric] Redis SET error for {key}: {str(e)[:120]}")
+        print(f"[US Rhetoric] ❌ Redis SET exception for {key}: {type(e).__name__}: {str(e)[:200]}")
         return False
 
 
