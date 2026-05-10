@@ -99,6 +99,21 @@ except ImportError as e:
     CHILE_RHETORIC_AVAILABLE = False
     print(f'[WHA Backend] WARNING: Chile rhetoric tracker unavailable ({e})')
 
+# US Rhetoric Tracker (v1.0.0 May 2026) — 9 actors / 3 layers (Executive / Legislative / Institutional).
+# Calibration: volatility/coherence-based, NOT aggression. Reads cross-theater fingerprints
+# from ALL other trackers (23 theaters). Writes fingerprint:us:current that every other
+# tracker reads back. DHS/ICE actor weighted highest (1.1) — civil unrest leading indicator.
+try:
+    from rhetoric_tracker_us import (
+        register_us_rhetoric_endpoints,
+        start_background_refresh as start_us_rhetoric_refresh,
+    )
+    US_RHETORIC_AVAILABLE = True
+    print('[WHA Backend] US rhetoric tracker module loaded')
+except ImportError as e:
+    US_RHETORIC_AVAILABLE = False
+    print(f'[WHA Backend] WARNING: US rhetoric tracker unavailable ({e})')
+
 # Economic Indicators US (v1.0.0 May 2026) — FRED + Yahoo Finance, 18 indicators.
 # Stability-framed economic data (S&P, gas, CPI YoY, unemployment, mortgage 30yr +13).
 # Powers the Economic Stability dimension on us-stability.html.
@@ -1550,6 +1565,12 @@ if PERU_RHETORIC_AVAILABLE:
 if CHILE_RHETORIC_AVAILABLE:
     register_chile_rhetoric_endpoints(app)
 
+# Register US Rhetoric tracker endpoints
+# (/api/rhetoric/us, /api/rhetoric/us/debug)
+# 9 actors across 3 layers; cross-theater fingerprint reads from all 23 theaters.
+if US_RHETORIC_AVAILABLE:
+    register_us_rhetoric_endpoints(app)
+
 # Register US Economic Indicators endpoints
 # (/api/economic-indicators-us, /api/economic-indicators-us/debug)
 if ECON_INDICATORS_US_AVAILABLE:
@@ -1950,6 +1971,12 @@ _start_background_refresh()
 # Start Cuba rhetoric tracker background refresh (12h cycle, 90s boot delay)
 if CUBA_RHETORIC_AVAILABLE:
     start_cuba_rhetoric_refresh()
+
+# Start US Rhetoric tracker background refresh (12h cycle, 90s boot delay)
+# Reads cross-theater fingerprints from all 23 trackers. Writes fingerprint:us:current
+# that every other tracker reads back for cross-theater awareness.
+if US_RHETORIC_AVAILABLE:
+    start_us_rhetoric_refresh()
 
 # Start US Stability periodic scanner (12h cycle, 90s boot delay)
 # Pulls fresh economic indicators, government composition, all keyword dimensions,
