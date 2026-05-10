@@ -930,12 +930,18 @@ def _fetch_all_articles():
             bluesky_raw = fetch_bluesky_for_target('us', days=7, max_posts_per_account=20)
             transformed = []
             for p in bluesky_raw:
+                # Defensive: source may be a dict — coerce to string
+                raw_src = p.get('source')
+                if isinstance(raw_src, dict):
+                    src_str = raw_src.get('name', '') or f"Bluesky/{p.get('handle','unknown')}"
+                else:
+                    src_str = raw_src or f"Bluesky/{p.get('handle','unknown')}"
                 transformed.append({
                     'title':       p.get('title') or p.get('text') or '',
                     'description': p.get('text') or p.get('description') or '',
                     'link':        p.get('url') or p.get('link') or '',
                     'published':   p.get('publishedAt') or p.get('published') or '',
-                    'source':      p.get('source') or f"Bluesky/{p.get('handle','unknown')}",
+                    'source':      str(src_str),
                     'source_type': 'bluesky',
                     'language':    'eng',
                     'weight':      1.0,
@@ -951,12 +957,18 @@ def _fetch_all_articles():
             tg_raw = fetch_telegram_signals_us(hours_back=7 * 24)
             transformed = []
             for p in tg_raw:
+                # Defensive: source may be a dict — coerce to string
+                raw_src = p.get('source')
+                if isinstance(raw_src, dict):
+                    src_str = raw_src.get('name', '') or f"Telegram/{p.get('channel','unknown')}"
+                else:
+                    src_str = raw_src or f"Telegram/{p.get('channel','unknown')}"
                 transformed.append({
                     'title':       p.get('title') or p.get('text') or '',
                     'description': p.get('text') or p.get('description') or '',
                     'link':        p.get('url') or p.get('link') or '',
                     'published':   p.get('publishedAt') or p.get('published') or p.get('date') or '',
-                    'source':      p.get('source') or f"Telegram/{p.get('channel','unknown')}",
+                    'source':      str(src_str),
                     'source_type': 'telegram',
                     'language':    'eng',
                     'weight':      0.95,
