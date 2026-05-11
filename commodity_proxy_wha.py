@@ -512,6 +512,98 @@ def register_wha_commodity_proxy(app, start_background=True):
             debug['me_backend_reachable'] = False
         return jsonify(debug)
 
+    # ========================================================================
+    # LEADER COMMODITY INTERVENTIONS — Proxy passthroughs to ME backend
+    # ========================================================================
+    # Detection + fingerprints live on the ME backend (canonical source). These
+    # passthroughs let WHA country-stability pages call their own regional
+    # backend without needing to know where the data lives. No local caching —
+    # ME fingerprint already has 12h TTL.
+
+    @app.route('/api/wha/leader-interventions/<country>', methods=['GET', 'OPTIONS'])
+    def api_wha_leader_interventions_country(country):
+        """Proxy: per-country leader interventions, forwards to ME backend."""
+        if request.method == 'OPTIONS':
+            return '', 200
+        country = (country or '').lower().strip()
+        try:
+            r = requests.get(
+                f"{ME_BACKEND_URL}/api/leader-interventions/{country}",
+                timeout=8
+            )
+            if r.status_code == 200:
+                return jsonify(r.json())
+            return jsonify({
+                'success': False,
+                'country': country,
+                'intervention_count': 0,
+                'interventions': [],
+                'error': f'ME backend returned {r.status_code}',
+            }), 200
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'country': country,
+                'intervention_count': 0,
+                'interventions': [],
+                'error': f'ME backend unreachable: {str(e)[:120]}',
+            }), 200
+
+    @app.route('/api/wha/leader-interventions/commodity/<commodity>', methods=['GET', 'OPTIONS'])
+    def api_wha_leader_interventions_commodity(commodity):
+        """Proxy: cross-country interventions for one commodity, forwards to ME backend."""
+        if request.method == 'OPTIONS':
+            return '', 200
+        commodity = (commodity or '').lower().strip()
+        try:
+            r = requests.get(
+                f"{ME_BACKEND_URL}/api/leader-interventions/commodity/{commodity}",
+                timeout=8
+            )
+            if r.status_code == 200:
+                return jsonify(r.json())
+            return jsonify({
+                'success': False,
+                'commodity': commodity,
+                'intervention_count': 0,
+                'interventions': [],
+                'error': f'ME backend returned {r.status_code}',
+            }), 200
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'commodity': commodity,
+                'intervention_count': 0,
+                'interventions': [],
+                'error': f'ME backend unreachable: {str(e)[:120]}',
+            }), 200
+
+    @app.route('/api/wha/leader-interventions', methods=['GET', 'OPTIONS'])
+    def api_wha_leader_interventions_global():
+        """Proxy: global leader interventions feed, forwards to ME backend."""
+        if request.method == 'OPTIONS':
+            return '', 200
+        try:
+            r = requests.get(
+                f"{ME_BACKEND_URL}/api/leader-interventions",
+                timeout=8
+            )
+            if r.status_code == 200:
+                return jsonify(r.json())
+            return jsonify({
+                'success': False,
+                'intervention_count': 0,
+                'interventions': [],
+                'error': f'ME backend returned {r.status_code}',
+            }), 200
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'intervention_count': 0,
+                'interventions': [],
+                'error': f'ME backend unreachable: {str(e)[:120]}',
+            }), 200
+
     if start_background:
         _start_background_worker()
 
@@ -520,3 +612,6 @@ def register_wha_commodity_proxy(app, start_background=True):
     print("  GET /api/wha/commodity-fingerprint/<country>")
     print("  GET /api/wha/commodity-fingerprint/<country>/<commodity>")
     print("  GET /api/wha/commodity-debug")
+    print("  GET /api/wha/leader-interventions")
+    print("  GET /api/wha/leader-interventions/<country>")
+    print("  GET /api/wha/leader-interventions/commodity/<commodity>")
