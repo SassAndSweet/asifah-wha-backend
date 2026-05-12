@@ -1198,6 +1198,7 @@ def _detect_outbound_targets(actor_results, fingerprints):
         'lebanon':    ['lebanon', 'hezbollah'],
         'yemen':      ['yemen', 'houthi', 'houthis'],
         'ukraine':    ['ukraine', 'zelensky', 'kyiv'],
+        'india':      ['india', 'modi', 'jaishankar', 'new delhi', 'h-1b', 'h1b', 'khalistan'],
     }
     exec_articles = actor_results.get('us_executive', {}).get('articles', [])
     state_articles = actor_results.get('us_state_dept', {}).get('articles', [])
