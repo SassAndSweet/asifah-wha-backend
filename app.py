@@ -1591,9 +1591,18 @@ if US_RHETORIC_AVAILABLE:
 # Register jawboning proxy endpoints — forwards POST /api/wha/jawboning/detect
 # to ME backend. The US tracker imports detect_jawboning_via_proxy from this
 # module to fire Trump signatures into the cross-theater fingerprint graph.
-if JAWBONING_PROXY_AVAILABLE:
-    register_jawboning_proxy(app)
-    print('[WHA Backend] ✅ Jawboning proxy endpoints registered')
+# Butterfly Proxy (May 16, 2026) — fetches cross-theater signal bundle
+# from ME backend's /api/butterfly/read/<consumer> endpoint. Caches 1h
+# locally. US tracker calls this; future Cuba/Mexico/Venezuela trackers
+# will too.
+try:
+    from butterfly_proxy_wha import register_butterfly_proxy
+    register_butterfly_proxy(app)
+    print('[WHA Backend] ✅ Butterfly proxy endpoints registered')
+except Exception as e:
+    import traceback
+    print(f'[WHA Backend] ⚠️ Butterfly proxy unavailable — {type(e).__name__}: {e}')
+    traceback.print_exc()
 
 # Register US Economic Indicators endpoints
 # (/api/economic-indicators-us, /api/economic-indicators-us/debug)
