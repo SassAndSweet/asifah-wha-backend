@@ -1452,12 +1452,137 @@ def run_us_rhetoric_scan(force=False):
             _scan_running = False
 
 
+# ════════════════════════════════════════════════════════════════════
+# SUBREDDIT LEAN CLASSIFICATION (v1.3 — May 16, 2026)
+# ════════════════════════════════════════════════════════════════════
+# 5-bucket classification (left / center_left / center / center_right /
+# right / far_right). The UI renders these as 3 buckets (LEFT / CENTER /
+# RIGHT) but the backend keeps the granularity for future v1.2 expansion.
+#
+# 'apolitical' subreddits are tracked separately and shown as a footnote
+# on the cross-spectrum balance card, NOT mixed into political buckets.
+#
+# Methodology: classifications follow the existing descriptions in
+# reddit_signals_us.REDDIT_SUBS_US ("left-leaning, high volume", etc.).
+# Pundit subs (Rogan/Tucker/Shapiro/Ezra/Pivot) added May 16 with
+# best-effort classification based on each show's editorial posture.
+# ════════════════════════════════════════════════════════════════════
+
+SUBREDDIT_LEAN_5BUCKET = {
+    # ── Explicitly political ──
+    'politics':            'left',           # high-volume left
+    'Conservative':        'right',          # curated right
+    'moderatepolitics':    'center',         # moderated cross-spectrum
+    'NeutralPolitics':     'center',         # moderated fact-based
+    'NeutralNews':         'center',         # moderated fact-based
+
+    # ── General news (cross-spectrum framing) ──
+    'news':                'center',
+    'worldnews':           'center',
+
+    # ── Civil/social (incident-driven, generally non-partisan) ──
+    'protest':             'center',
+    'PublicFreakout':      'center',
+    'scotus':              'center',
+    'law':                 'center',
+
+    # ── Pundit subs (v1.3 May 16, 2026) ──
+    'JoeRogan':            'right',          # populist/contrarian right
+    'TuckerCarlson':       'far_right',
+    'BenShapiro':          'right',
+    'EzraKleinShow':       'center_left',
+    'PivotPodcast':        'center_left',
+
+    # ── Apolitical (tracked separately, NOT in political buckets) ──
+    'weather':             'apolitical',
+    'TropicalWeather':     'apolitical',
+    'CredibleDefense':     'apolitical',
+    'warcollege':          'apolitical',
+    'NationalGuard':       'apolitical',
+    'economy':             'apolitical',
+    'Economics':           'apolitical',
+    'layoffs':             'apolitical',
+    'povertyfinance':      'apolitical',
+    'wallstreetbets':      'apolitical',
+    'cybersecurity':       'apolitical',
+    'netsec':              'apolitical',
+    'sysadmin':            'apolitical',
+    'OSINT':               'apolitical',
+}
+
+# Map 5-bucket → 3-bucket for UI consumption.
+LEAN_5_TO_3 = {
+    'left':         'left',
+    'center_left':  'left',     # collapse left-leaning subs into LEFT for 3-bucket UI
+    'center':       'center',
+    'center_right': 'right',    # collapse right-leaning into RIGHT
+    'right':        'right',
+    'far_right':    'right',
+}
+
+
 def _compute_source_counts(articles):
-    """Aggregate article counts by source_type for diagnostics."""
+    """
+    Aggregate article counts by source_type for diagnostics.
+
+    v1.3 (May 16, 2026): also computes subreddit-lean breakdown for
+    the cross-spectrum balance card on rhetoric-us.html. Reads the
+    'source' field on Reddit articles (format 'reddit/r/<subname>')
+    and buckets by SUBREDDIT_LEAN_5BUCKET classification.
+
+    Returns dict with these keys:
+        <source_type>     — total count per source_type (rss, reddit, etc.)
+        reddit_lean_5     — {left, center_left, center, center_right,
+                             right, far_right, apolitical, unmapped}
+        reddit_lean_3     — {left, center, right, apolitical}  (UI-friendly)
+        reddit_breakdown  — {subreddit_name: count}  (for hover tooltips)
+    """
     counts = {}
+    # 5-bucket counters (backend granularity)
+    lean_5 = {
+        'left':         0,
+        'center_left':  0,
+        'center':       0,
+        'center_right': 0,
+        'right':        0,
+        'far_right':    0,
+        'apolitical':   0,
+        'unmapped':     0,   # new subreddit not in SUBREDDIT_LEAN_5BUCKET
+    }
+    # Per-subreddit breakdown for hover tooltips
+    breakdown = {}
+
     for art in articles:
         st = art.get('source_type', 'unknown')
         counts[st] = counts.get(st, 0) + 1
+
+        # Reddit-specific classification — parse source field
+        if st == 'reddit':
+            source = art.get('source', '') or ''
+            # Expected format: 'reddit/r/<subname>'
+            if source.startswith('reddit/r/'):
+                subname = source[len('reddit/r/'):].strip()
+                # Increment per-sub breakdown
+                breakdown[subname] = breakdown.get(subname, 0) + 1
+                # Classify into lean bucket
+                lean = SUBREDDIT_LEAN_5BUCKET.get(subname, 'unmapped')
+                lean_5[lean] = lean_5.get(lean, 0) + 1
+            else:
+                # Malformed source field — log under unmapped
+                lean_5['unmapped'] += 1
+
+    # Build 3-bucket UI-friendly view by collapsing 5-bucket
+    lean_3 = {'left': 0, 'center': 0, 'right': 0, 'apolitical': lean_5['apolitical']}
+    for bucket_5, count in lean_5.items():
+        if bucket_5 in ('apolitical', 'unmapped'):
+            continue
+        bucket_3 = LEAN_5_TO_3.get(bucket_5, 'center')
+        lean_3[bucket_3] = lean_3.get(bucket_3, 0) + count
+
+    counts['reddit_lean_5']    = lean_5
+    counts['reddit_lean_3']    = lean_3
+    counts['reddit_breakdown'] = breakdown
+
     return counts
 
 
