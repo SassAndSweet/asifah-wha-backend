@@ -1640,6 +1640,84 @@ def health():
     })
 
 
+@app.route('/api/debug/redis-keys', methods=['GET'])
+def api_debug_redis_keys():
+    """
+    Redis introspection endpoint — diagnostic ONLY, not for production traffic.
+
+    Usage:
+      /api/debug/redis-keys                   → lists all keys (capped at 100)
+      /api/debug/redis-keys?pattern=fingerprint:*  → filter by pattern
+      /api/debug/redis-keys?pattern=jawboning:*    → see jawboning keys
+      /api/debug/redis-keys?pattern=rhetoric:*     → rhetoric snapshots
+      /api/debug/redis-keys?pattern=*&values=true  → include values (slow!)
+
+    Returns:
+      { redis_configured, pattern, keys: [...], total_count, sample_values: {...} }
+    """
+    import urllib.parse
+    pattern = request.args.get('pattern', '*')
+    include_values = request.args.get('values', 'false').lower() == 'true'
+    max_keys = int(request.args.get('max', '100'))
+
+    out = {
+        'redis_configured': bool(UPSTASH_REDIS_URL and UPSTASH_REDIS_TOKEN),
+        'pattern': pattern,
+        'keys': [],
+        'total_count': 0,
+        'sample_values': {},
+        'timestamp': datetime.now(timezone.utc).isoformat(),
+    }
+    if not out['redis_configured']:
+        out['error'] = 'Redis env vars not configured on this backend.'
+        return jsonify(out), 503
+
+    # Upstash REST SCAN — using cursor=0, paginating up to max_keys
+    try:
+        url = f"{UPSTASH_REDIS_URL}/scan/0/match/{urllib.parse.quote(pattern)}/count/{max_keys}"
+        resp = requests.get(
+            url,
+            headers={'Authorization': f'Bearer {UPSTASH_REDIS_TOKEN}'},
+            timeout=8,
+        )
+        if resp.status_code != 200:
+            out['error'] = f'Redis SCAN HTTP {resp.status_code}: {resp.text[:200]}'
+            return jsonify(out), 502
+        data = resp.json()
+        # Upstash SCAN returns: {"result": ["cursor", ["key1","key2",...]]}
+        result = data.get('result', [])
+        if isinstance(result, list) and len(result) >= 2:
+            keys = result[1] if isinstance(result[1], list) else []
+        else:
+            keys = []
+        out['keys'] = sorted(keys)
+        out['total_count'] = len(keys)
+        out['note'] = (f'Scan capped at {max_keys}. Some keys may exist beyond this cap. '
+                       f'Use ?max=200 (etc.) to expand.')
+
+        # Optionally fetch values for the first N keys
+        if include_values and keys:
+            sample_keys = keys[:10]   # never sample more than 10 to keep response small
+            for k in sample_keys:
+                try:
+                    vurl = f"{UPSTASH_REDIS_URL}/get/{urllib.parse.quote(k, safe='')}"
+                    vresp = requests.get(
+                        vurl,
+                        headers={'Authorization': f'Bearer {UPSTASH_REDIS_TOKEN}'},
+                        timeout=4,
+                    )
+                    if vresp.status_code == 200:
+                        vdata = vresp.json()
+                        out['sample_values'][k] = vdata.get('result')
+                except Exception as e:
+                    out['sample_values'][k] = f'<error: {str(e)[:100]}>'
+
+        return jsonify(out), 200
+    except Exception as e:
+        out['error'] = f'{type(e).__name__}: {str(e)[:200]}'
+        return jsonify(out), 500
+
+
 @app.route('/api/wha/threat/<country_id>', methods=['GET', 'OPTIONS'])
 def api_wha_threat(country_id):
     if request.method == 'OPTIONS':
