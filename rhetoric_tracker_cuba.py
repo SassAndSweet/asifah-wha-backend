@@ -134,6 +134,22 @@ except ImportError as e:
     _fetch_brave = None
     _BRAVE_AVAILABLE = False
 
+# ────────────────────────────────────────────────────────────
+# BUTTERFLY READER (Phase 6 cross-theater consumer — May 16, 2026)
+# Reads full butterfly bundle (US fingerprint + jawboning signals + atomic
+# signals NOT in shared crosstheater dict). LAYERS ON TOP of existing
+# _apply_crosstheater_reads() which still handles Pattern A shared-dict
+# boosts from RU/IR/CN. Non-overlapping by design.
+# ────────────────────────────────────────────────────────────
+try:
+    from butterfly_proxy_wha import read_butterfly_signals_via_proxy
+    BUTTERFLY_AVAILABLE = True
+    print("[Cuba Rhetoric] ✅ Butterfly reader available (Phase 6 mode)")
+except ImportError as e:
+    BUTTERFLY_AVAILABLE = False
+    read_butterfly_signals_via_proxy = None
+    print(f"[Cuba Rhetoric] WARNING: butterfly_proxy_wha not available ({e})")
+
 
 # ============================================
 # CONFIG
@@ -1729,6 +1745,90 @@ def run_cuba_rhetoric_scan(force=False):
         # 3. Apply cross-theater boosts (Russia/Iran/China fingerprints)
         actor_results = _apply_crosstheater_reads(actor_results)
 
+        # ──────────────────────────────────────────────────────────────────
+        # 3a. PHASE 6 — Butterfly bundle (May 16, 2026)
+        # Reads US fingerprint + jawboning fingerprints + atomic signals NOT
+        # in the shared crosstheater dict. Layers ON TOP of step 3 boosts.
+        # Hard-bounded threaded call so scan completes even if ME is slow.
+        # ──────────────────────────────────────────────────────────────────
+        butterfly_bundle = None
+        if BUTTERFLY_AVAILABLE:
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError as _BFTimeout
+            _bf_executor = ThreadPoolExecutor(max_workers=1)
+            try:
+                _bf_future = _bf_executor.submit(
+                    read_butterfly_signals_via_proxy,
+                    consumer_theater='cuba',
+                    force=False,
+                )
+                try:
+                    butterfly_bundle = _bf_future.result(timeout=25)
+                except _BFTimeout:
+                    print("[Cuba Rhetoric] ⏱️ Butterfly reader exceeded 25s — "
+                          "abandoning (scan continues, no Phase 6 amplification)")
+                    butterfly_bundle = None
+                except Exception as e:
+                    print(f"[Cuba Rhetoric] ⚠️ Butterfly reader error: "
+                          f"{type(e).__name__}: {str(e)[:160]}")
+                    butterfly_bundle = None
+            finally:
+                _bf_executor.shutdown(wait=False)
+
+        # Apply butterfly amplifier_actor_deltas to actor_results.
+        # Cuba uses 'escalation_level' field (NOT 'level' or 'tier' — third
+        # platform convention). Cap at L5 to prevent runaway scores.
+        butterfly_boosts_applied = []
+        butterfly_stressors      = []
+        butterfly_context_notes  = []
+        if isinstance(butterfly_bundle, dict) and butterfly_bundle.get('success'):
+            deltas    = butterfly_bundle.get('amplifier_actor_deltas', {}) or {}
+            stressors = butterfly_bundle.get('upstream_stressors', []) or []
+            notes     = butterfly_bundle.get('context_notes', []) or []
+
+            for actor_key, delta in deltas.items():
+                if actor_key not in actor_results:
+                    continue  # unknown actor, skip silently
+                try:
+                    delta = int(delta)
+                except (TypeError, ValueError):
+                    continue
+                if delta == 0:
+                    continue
+                current = int(actor_results[actor_key].get('escalation_level', 0) or 0)
+                new_level = max(0, min(5, current + delta))
+                if new_level != current:
+                    actor_results[actor_key]['escalation_level'] = new_level
+                    # Keep label + color in sync (mirror _apply_crosstheater_reads pattern)
+                    actor_results[actor_key]['escalation_label'] = (
+                        ESCALATION_LEVELS.get(new_level, {}).get('label', 'Baseline')
+                    )
+                    actor_results[actor_key]['escalation_color'] = (
+                        ESCALATION_LEVELS.get(new_level, {}).get('color', '#6b7280')
+                    )
+                    actor_results[actor_key]['butterfly_boost'] = (
+                        f'Phase 6 upstream signal (+{delta})'
+                    )
+                    butterfly_boosts_applied.append(
+                        f'{actor_key} L{current}->L{new_level}'
+                    )
+
+            butterfly_stressors     = stressors
+            butterfly_context_notes = notes
+
+            if butterfly_boosts_applied:
+                print(f"[Cuba Rhetoric] 🦋 Butterfly boosts: "
+                      f"{', '.join(butterfly_boosts_applied)}")
+            else:
+                print(f"[Cuba Rhetoric] Butterfly bundle received, no actor "
+                      f"boosts triggered this scan ({len(stressors)} stressors, "
+                      f"{len(notes)} context notes)")
+        elif BUTTERFLY_AVAILABLE:
+            print("[Cuba Rhetoric] Butterfly bundle unavailable this scan "
+                  "(empty/fail-open) — Phase 6 amplification skipped")
+        # ──────────────────────────────────────────────────────────────────
+        # End Phase 6 butterfly block. Continue with normal scan flow.
+        # ──────────────────────────────────────────────────────────────────
+
         # 3b. v2.1: Cross-actor signal sweep (migration, civilian pressure, oil tankers)
         global_signals = _classify_global_signals(articles)
 
@@ -1845,6 +1945,11 @@ def run_cuba_rhetoric_scan(force=False):
             'oil_tanker_level':          global_signals['oil_tanker_max'],
             'oil_tanker_label':          _lvl(global_signals['oil_tanker_max']),
             'oil_tanker_signals':        global_signals['oil_tanker_signals'],
+
+            # ── Phase 6: Butterfly bundle (cross-theater upstream signals) ──
+            'butterfly_upstream_stressors': butterfly_stressors,
+            'butterfly_context_notes':      butterfly_context_notes,
+            'butterfly_boosts_applied':     butterfly_boosts_applied,
 
             # Interpreter output
             'red_lines':             red_lines_triggered,
