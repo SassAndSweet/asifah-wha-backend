@@ -138,6 +138,23 @@ REDDIT_SUBS_US = [
         'r/OSINT [CONFIRMED]'),
     ('NeutralNews',          0.95, ['*'],                         'hot',
         'r/NeutralNews -- moderated fact-based [CONFIRMED]'),
+
+    # ── Pundit / Curated Political Voices (v1.3 — May 16, 2026) ──
+    # Mainstream political discourse only — no ideology-debate subs.
+    # Adding pundit voices to balance the cross-spectrum card. Lean
+    # classification is in rhetoric_tracker_us.SUBREDDIT_LEAN_5BUCKET.
+    # Handles flagged [VERIFY] should be confirmed active on first scan;
+    # 404s/empty pulls are handled gracefully by existing error code.
+    ('JoeRogan',             0.85, ['political', 'civil_social'], 'hot',
+        'r/JoeRogan -- right-leaning populist, 1.4M members [CONFIRMED]'),
+    ('TuckerCarlson',        0.80, ['political'],                 'hot',
+        'r/TuckerCarlson -- far-right pundit [VERIFY first scan]'),
+    ('BenShapiro',           0.80, ['political'],                 'hot',
+        'r/BenShapiro -- conservative pundit [VERIFY first scan]'),
+    ('EzraKleinShow',        0.85, ['political'],                 'hot',
+        'r/EzraKleinShow -- center-left NYT-aligned [VERIFY first scan]'),
+    ('PivotPodcast',         0.80, ['political', 'economic'],     'hot',
+        'r/PivotPodcast -- Swisher+Galloway center-left tech/politics [VERIFY first scan]'),
 ]
 
 
