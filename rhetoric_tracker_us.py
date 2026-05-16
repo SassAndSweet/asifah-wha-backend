@@ -95,6 +95,24 @@ print(f"[US Rhetoric] Redis available: {REDIS_AVAILABLE} (URL len={len(UPSTASH_U
 print(f"[US Rhetoric] NewsAPI available: {NEWSAPI_AVAILABLE} (key len={len(NEWSAPI_KEY)})")
 print(f"[US Rhetoric] Brave available: {BRAVE_AVAILABLE} (key len={len(BRAVE_API_KEY)})")
 
+# Phase 5b (May 15, 2026) — Jawboning primitive wire-in.
+# GREENFIELD: the US tracker has no inline Trump signal computation, so this
+# is a direct write-path. Every scan POSTs actor_results to ME's catalog-based
+# detector; the detector evaluates all 11 Trump command signatures and writes
+# cross-theater fingerprints (jawboning:command:us:on_china, :on_iran, etc.)
+# with 24h TTL. Cross-theater consumers (Iran/China/Cuba/Russia trackers) read
+# those fingerprints directly from Redis — they never call the detector.
+# Failure mode: if proxy unreachable, jawboning fingerprints don't write for
+# this scan, but the US scan still completes normally. Bounded by threaded
+# timeout in run_us_rhetoric_scan() Phase 5.5 block.
+try:
+    from jawboning_proxy_wha import detect_jawboning_via_proxy
+    JAWBONING_PRIMITIVE_AVAILABLE = True
+    print("[US Rhetoric] ✅ Jawboning primitive available (Phase 5b — Trump wire-in)")
+except ImportError:
+    JAWBONING_PRIMITIVE_AVAILABLE = False
+    print("[US Rhetoric] ⚠️ Jawboning primitive not importable — signatures will not fire this scan")
+
 # Show first 30 chars of URL so we can verify we got the right one (without
 # leaking the token). This helps catch env var typos.
 if UPSTASH_URL:
@@ -1295,6 +1313,54 @@ def run_us_rhetoric_scan(force=False):
             fracture   = 0
             top_signals = []
             so_what    = {'factor': 'unknown', 'description': 'Signal interpreter not loaded'}
+
+        # ════════════════════════════════════════════════════════════════════
+        # Phase 5.5: Jawboning Primitive — fire Trump command signatures
+        # ════════════════════════════════════════════════════════════════════
+        # GREENFIELD wire-in (Phase 5b, May 15, 2026). Posts the full
+        # actor_results to ME backend's /api/jawboning/detect, where the
+        # catalog-based detector evaluates all 11 Trump command signatures
+        # and writes Redis fingerprints (jawboning:command:us:on_china,
+        # :on_iran, :on_rare_earths_and_critical_minerals, etc.) with 24h TTL.
+        #
+        # Hard-bounded by threaded timeout (25s). If the proxy hangs or fails,
+        # the scan continues with empty jawboning_results — no impact on
+        # composite scoring, fingerprint write, or downstream consumers.
+        # Same defensive pattern as Phase 3 India strangler-fig.
+        jawboning_results = {}
+        jawboning_fired_count = 0
+        if JAWBONING_PRIMITIVE_AVAILABLE:
+            print("[US Rhetoric] Phase 5.5: jawboning primitive call...")
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError as _JBTimeout
+            _jb_executor = ThreadPoolExecutor(max_workers=1)
+            try:
+                _jb_future = _jb_executor.submit(
+                    detect_jawboning_via_proxy,
+                    leader_id='trump',
+                    country_id='us',
+                    actor_results=actor_results,
+                    write_fingerprints=True,    # production write — no dual-track
+                    scan_id=datetime.now(timezone.utc).isoformat(),
+                )
+                try:
+                    jawboning_results = _jb_future.result(timeout=25) or {}
+                    jawboning_fired_count = sum(1 for v in jawboning_results.values() if v)
+                    if jawboning_fired_count > 0:
+                        fired_sigs = [k for k, v in jawboning_results.items() if v]
+                        print(f"[US Rhetoric] 🦋 {jawboning_fired_count} jawboning signature(s) fired: {fired_sigs}")
+                    else:
+                        print(f"[US Rhetoric] No jawboning signatures fired this scan "
+                              f"(0/{len(jawboning_results)} evaluated)")
+                except _JBTimeout:
+                    print("[US Rhetoric] ⏱️ Jawboning primitive exceeded 25s — "
+                          "ABANDONING (scan continues, no fingerprints written this cycle)")
+                except Exception as e:
+                    print(f"[US Rhetoric] ⚠️ Jawboning primitive failed: "
+                          f"{type(e).__name__}: {str(e)[:160]}")
+            finally:
+                _jb_executor.shutdown(wait=False)
+        else:
+            print("[US Rhetoric] Phase 5.5: jawboning primitive unavailable — skipping")
 
         # Phase 6: write fingerprint
         fingerprint = _write_us_fingerprint(actor_results, composite, branch_div, fracture, outbound_targets)
