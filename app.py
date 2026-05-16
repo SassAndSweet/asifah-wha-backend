@@ -114,6 +114,23 @@ except ImportError as e:
     US_RHETORIC_AVAILABLE = False
     print(f'[WHA Backend] WARNING: US rhetoric tracker unavailable ({e})')
 
+# Jawboning proxy — forwards detection requests to ME backend's /api/jawboning/detect.
+# Used by rhetoric_tracker_us.py (and future Cuba/Mexico/Venezuela trackers) to fire
+# jawboning signatures from the shared ME-hosted catalog (jawboning_signatures.py +
+# jawboning_detector.py). Phase 5b (May 15, 2026): GREENFIELD wire-in for Trump
+# signatures — no inline implementation existed in rhetoric_tracker_us.py, so this
+# proxy fires write_fingerprints=True from day one (no strangler-fig dual-track).
+# Auth retrofit pending — see SECURITY TODO in jawboning_detector.py.
+try:
+    from jawboning_proxy_wha import register_jawboning_proxy
+    JAWBONING_PROXY_AVAILABLE = True
+    print('[WHA Backend] ✅ Jawboning proxy module loaded')
+except Exception as e:
+    import traceback
+    JAWBONING_PROXY_AVAILABLE = False
+    print(f'[WHA Backend] ⚠️ Jawboning proxy not available — {type(e).__name__}: {e}')
+    traceback.print_exc()
+
 # Economic Indicators US (v1.0.0 May 2026) — FRED + Yahoo Finance, 18 indicators.
 # Stability-framed economic data (S&P, gas, CPI YoY, unemployment, mortgage 30yr +13).
 # Powers the Economic Stability dimension on us-stability.html.
@@ -1570,6 +1587,13 @@ if CHILE_RHETORIC_AVAILABLE:
 # 9 actors across 3 layers; cross-theater fingerprint reads from all 23 theaters.
 if US_RHETORIC_AVAILABLE:
     register_us_rhetoric_endpoints(app)
+
+# Register jawboning proxy endpoints — forwards POST /api/wha/jawboning/detect
+# to ME backend. The US tracker imports detect_jawboning_via_proxy from this
+# module to fire Trump signatures into the cross-theater fingerprint graph.
+if JAWBONING_PROXY_AVAILABLE:
+    register_jawboning_proxy(app)
+    print('[WHA Backend] ✅ Jawboning proxy endpoints registered')
 
 # Register US Economic Indicators endpoints
 # (/api/economic-indicators-us, /api/economic-indicators-us/debug)
