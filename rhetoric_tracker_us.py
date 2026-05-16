@@ -1185,18 +1185,47 @@ CROSS_THEATER_SOURCES = [
 
 
 def _read_crosstheater_fingerprints():
-    """Read fingerprints from all other trackers. Returns dict by source theater."""
-    fingerprints = {}
-    for theater in CROSS_THEATER_SOURCES:
-        # Try multiple key conventions used across trackers
-        for key_pattern in [f'fingerprint:{theater}:current',
-                            f'rhetoric:{theater}:fingerprint',
-                            f'crosstheater:{theater}']:
-            fp = _redis_get(key_pattern)
-            if fp:
-                fingerprints[theater] = fp
-                break
-    return fingerprints
+    """
+    Read cross-theater fingerprints via butterfly proxy.
+    
+    Replaced May 16 2026 — previously tried 3 Redis key conventions directly,
+    which only succeeded for theaters writing 'fingerprint:<theater>:current'.
+    Now calls butterfly_proxy_wha which fetches from ME backend's centralized
+    butterfly reader, handling all 4 fingerprint storage patterns
+    (envelope / atomic / shared-dict / snapshot).
+    
+    Returns the same shape as before (dict by source theater) for backward
+    compatibility with existing US tracker code that consumes this output.
+    The richer fields (amplifier_actor_deltas, context_notes, upstream_stressors)
+    are available via the parallel _read_butterfly_bundle() helper.
+    """
+    try:
+        from butterfly_proxy_wha import read_butterfly_signals_via_proxy
+        bundle = read_butterfly_signals_via_proxy(consumer_theater='us')
+        return bundle.get('upstream_fingerprints', {})
+    except Exception as e:
+        print(f"[US Rhetoric] Butterfly read failed: {type(e).__name__}: {e}")
+        return {}
+
+
+def _read_butterfly_bundle():
+    """
+    Read the FULL butterfly bundle (not just fingerprints) so the scan
+    can consume amplifier_actor_deltas, context_notes, upstream_stressors.
+    
+    Returns the 4-field bundle, or an empty bundle on any failure.
+    """
+    try:
+        from butterfly_proxy_wha import read_butterfly_signals_via_proxy
+        return read_butterfly_signals_via_proxy(consumer_theater='us')
+    except Exception as e:
+        print(f"[US Rhetoric] Butterfly bundle read failed: {type(e).__name__}: {e}")
+        return {
+            'upstream_fingerprints':  {},
+            'amplifier_actor_deltas': {},
+            'context_notes':          [],
+            'upstream_stressors':     [],
+        }
 
 
 def _detect_outbound_targets(actor_results, fingerprints):
