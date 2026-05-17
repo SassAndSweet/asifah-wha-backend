@@ -329,9 +329,45 @@ ACTORS = {
             'us navy caribbean', 'us destroyer cuba', 'us navy gulf mexico',
             'us military exercise cuba', 'us forces caribbean',
             'us naval presence caribbean', 'us warship caribbean',
-            # Spanish
+            # Drone threat from Cuba (v1.1 — May 17, 2026 — Axios disclosure)
+            'cuba 300 drones', 'cuba military drones', 'cuba drone threat',
+            'cuba drones russia iran', 'cuba attack drones', 'cuba drone fleet',
+            'cuba drone arsenal', 'cuba drone capability', 'cuba drone buildup',
+            'cuba drone warfare', 'cuba shahed', 'cuba mohajer', 'cuba geran',
+            'guantanamo drone threat', 'guantanamo drone attack',
+            'key west drone threat', 'key west drone attack',
+            'drone strike guantanamo', 'drone strike key west',
+            'cuba drone strike us', 'cuba pretext military action',
+            'cuba pretext for military action', 'pretext drone cuba',
+            'ratcliffe cuba', 'ratcliffe havana', 'cia director cuba visit',
+            'cia director havana', 'ratcliffe ultimatum cuba',
+            'brothers to the rescue indictment', 'raul castro indictment',
+            'castro indictment unsealed', 'doj indictment castro',
+            'cuban officials drone plans', 'cuba drone discussions',
+            'cuban drones stashed', 'drones strategic locations cuba',
+            'iranian military advisers cuba', 'iranian advisers havana',
+            'iranian advisers cuba', 'cuba learning iran tactics',
+            'cuba iran resistance tactics', 'cuba drone tactics ukraine',
+            # Counter-drone US posture
+            'mq-4c triton cuba', 'triton cuban coast', 'triton bay of pigs',
+            'flex 2026 exercise', 'us counter-drone key west',
+            'navy counter-drone caribbean', 'us counter-drone cuba',
+            'us drone reconnaissance cuba', 'us intel flights cuba',
+            'us reconnaissance cuban coast',
+            # US officials on the drone threat
+            'hegseth cuba', 'hegseth drone cuba', 'hegseth caribbean drone',
+            'diaz-balart cuba', 'diaz-balart drone cuba',
+            'diaz-balart hegseth cuba', 'rubio failed state cuba',
+            'rubio 90 miles cuba',
+            # Spanish equivalents (Spanish-language press WILL cover this)
             'marina estados unidos cuba', 'guardia costera cuba',
             'southcom ejercicio caribe', 'base guantanamo',
+            'drones cuba', 'cuba 300 drones militares', 'amenaza drones cuba',
+            'cuba drones rusia iran', 'drones ataque cuba',
+            'ratcliffe cuba', 'ratcliffe la habana', 'cia visita cuba',
+            'acusacion raul castro', 'pretexto accion militar cuba',
+            'asesores militares iranies cuba', 'asesores iranies habana',
+            'soldados cubanos ucrania', 'cubanos lucharon ucrania',
         ],
         'baseline_statements_per_week': 5,
         'tripwires': [
@@ -341,6 +377,16 @@ ACTORS = {
             'southcom cuba contingency',
             'us naval blockade cuba',
             'us forces caribbean deployment',
+            # Drone-threat tripwires (v1.1 — kinetic-precursor signals)
+            'cuba 300 drones',
+            'cuba drone strike us',
+            'cuba pretext for military action',
+            'ratcliffe ultimatum cuba',
+            'raul castro indictment unsealed',
+            'iranian military advisers cuba',
+            'cuban officials drone plans guantanamo',
+            'us strike cuba contingency',
+            'us military action cuba',
         ],
     },
 
@@ -579,9 +625,29 @@ ACTORS = {
             # Intelligence
             'russia cuba espionage', 'russian intelligence cuba',
             'gru cuba', 'svr cuba', 'russian spies cuba',
+            # Cuban-soldiers-Ukraine pipeline (v1.1 — May 17 — Axios + AP)
+            'cuban soldiers ukraine', 'cuban fighters ukraine',
+            'cubans fighting russia ukraine', 'cubans russian army',
+            '5000 cuban soldiers ukraine', 'cuba ukraine 5000',
+            'cuban mercenaries ukraine', 'cuba mercenaries russia',
+            'cuban recruits russia', '$25000 cuban soldier',
+            'russia pays cuba soldiers', 'russia 25000 per soldier',
+            'putin meat grinder cuban', 'cuban recruits ukraine',
+            'cuba russia military labor', 'cuba foreign legion russia',
+            'cuban troops russia ukraine', 'cuban veterans ukraine',
+            # Drone transfer pipeline (v1.1)
+            'russia cuba drone transfer', 'russia cuba drone shipment',
+            'russia drone supply cuba', 'russia drones to cuba',
+            'geran-2 cuba', 'geran cuba', 'russian shahed cuba',
+            'russia drone pipeline cuba', 'russia military equipment cuba',
+            'cuba seeks more drones russia', 'cuba sought drones russia',
+            'russia cuba drone agreement', 'russia exports drones cuba',
+            'rosneft cuba drone', 'russia cuba weapons transfer',
             # Russian-language
             'Куба Россия', 'Россия Куба визит', 'Путин Куба',
             'Лавров Куба', 'Росснефть Куба',
+            'кубинцы Украина', 'кубинские солдаты',
+            'дроны Куба', 'Геран Куба',
             # Spanish (high-volume Cuban press coverage of Russia relations)
             'rusia a cuba', 'rusia donacion cuba', 'petroleo donado por rusia',
             'petroleo ruso cuba', 'petroleo rusia cuba',
@@ -698,9 +764,29 @@ ACTORS = {
             # Proxy / hezbollah
             'hezbollah cuba', 'iran proxy cuba', 'iran latin america',
             'hezbollah latin america',
+            # Iranian military advisers in Cuba (v1.1 — May 17 — Axios)
+            'iranian military advisers cuba', 'iranian advisers havana',
+            'iranian advisers cuba', 'irgc advisers cuba',
+            'iranian military presence cuba', 'iran military trainers cuba',
+            'iranian engineers cuba', 'iran drone trainers cuba',
+            'cuba learning iran tactics', 'cuba iran resistance tactics',
+            'cuba intelligence iran tactics', 'cuban officials learn iran',
+            # Iranian drone pipeline Cuba (Shahed/Mohajer)
+            'shahed cuba', 'shahed-136 cuba', 'iran shahed cuba',
+            'mohajer cuba', 'mohajer-6 cuba', 'iran mohajer cuba',
+            'iran drone transfer cuba', 'iran drones to cuba',
+            'iran exports drones cuba', 'iran cuba drone shipment',
+            'iran cuba drone pipeline', 'iran cuba drone agreement',
+            'iran weapons transfer cuba', 'iran military equipment cuba',
+            # Venezuela-pipeline references (VZ-aware sprinkle per user guidance)
+            'mohajer venezuela', 'mohajer-6 venezuela',
+            'venezuela iranian engineers', 'iran venezuela drone assembly',
+            'iran venezuela cuba pipeline', 'venezuela cuba drone',
+            'venezuela mohajer line', 'iranian drone line venezuela',
             # Persian-language
             'ایران کوبا', 'کوبا تهران', 'رئیسی کوبا',
             'پزشکیان کوبا', 'خامنه‌ای کوبا',
+            'شاهد کوبا', 'مهاجر کوبا', 'سپاه کوبا',
             # Spanish (Cuban press coverage of Iran relations)
             'iran a cuba', 'iran cuba', 'iran entrega cuba',
             'iran ayuda cuba', 'cooperacion iran cuba',
@@ -945,6 +1031,13 @@ RHETORIC_RSS_FEEDS = [
 
     # English-language independent Cuba coverage
     {'url': 'https://havanatimes.org/feed/',                     'name': 'Havana Times (Independent)',  'weight': 0.85, 'lang': 'en'},
+
+    # US national-security + drone-warfare outlets (v1.1 — May 17, 2026)
+    # Critical for capturing US intel disclosures, drone-pipeline coverage, US official statements
+    {'url': 'https://api.axios.com/feed/politics',               'name': 'Axios Politics',              'weight': 1.0,  'lang': 'en'},
+    {'url': 'https://www.reuters.com/world/americas/rss',        'name': 'Reuters Americas',            'weight': 1.0,  'lang': 'en'},
+    {'url': 'https://dronexl.co/feed',                           'name': 'DroneXL (Drone Pipeline)',    'weight': 0.95, 'lang': 'en'},
+    {'url': 'https://foreignpolicy.com/feed/',                   'name': 'Foreign Policy',              'weight': 0.95, 'lang': 'en'},
 
     # Regional context (Spanish wire services)
     {'url': 'https://www.efe.com/efe/america/rss/1',             'name': 'EFE Americas',                'weight': 0.80, 'lang': 'es'},
